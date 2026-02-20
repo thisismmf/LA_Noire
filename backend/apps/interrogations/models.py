@@ -1,0 +1,22 @@
+from django.db import models
+
+
+class Interrogation(models.Model):
+    STATUS_CHOICES = (
+        ("pending_detective", "Pending Detective"),
+        ("pending_sergeant", "Pending Sergeant"),
+        ("pending_captain", "Pending Captain"),
+        ("pending_chief", "Pending Chief"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    )
+    case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="interrogations")
+    suspect = models.ForeignKey("suspects.Person", on_delete=models.CASCADE, related_name="interrogations")
+    detective_score = models.IntegerField(null=True, blank=True)
+    sergeant_score = models.IntegerField(null=True, blank=True)
+    captain_decision = models.CharField(max_length=50, blank=True)
+    captain_notes = models.TextField(blank=True)
+    chief_decision = models.CharField(max_length=50, blank=True)
+    chief_notes = models.TextField(blank=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="pending_detective")
+
