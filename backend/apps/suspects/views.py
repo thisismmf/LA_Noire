@@ -1,0 +1,119 @@
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from apps.rbac.permissions import RoleRequiredPermission
+from apps.rbac.constants import ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_SYSTEM_ADMIN, ROLE_POLICE_CHIEF, ROLE_CAPTAIN, ROLE_POLICE_OFFICER
+from .models import Person, SuspectCandidate, WantedRecord
+from .serializers import (
+    SuspectProposalSerializer,
+    SuspectCandidateSerializer,
+    SergeantDecisionSerializer,
+    MostWantedSerializer,
+    PersonSerializer,
+)
+from .utils import compute_most_wanted
+from apps.cases.models import Case
+
+
+class SuspectProposalView(APIView):
+    permission_classes = [RoleRequiredPermission]
+    required_roles = [ROLE_DETECTIVE]
+
+    def post(self, request, case_id):
+        case = get_object_or_404(Case, id=case_id)
+        from apps.cases.models import CaseAssignment
+        if not CaseAssignment.objects.filter(case=case, user=request.user, role_in_case="detective").exists():
+            return Response(
+                {"error": {"code": "forbidden", "message": "Detective not assigned to case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = SuspectProposalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        created = []
+        for person_data in serializer.validated_data["suspects"]:
+            person_id = person_data.pop("id", None)
+            if person_id:
+                person = get_object_or_404(Person, id=person_id)
+            else:
+                person = Person.objects.create(**person_data)
+            candidate = SuspectCandidate.objects.create(
+                case=case,
+                person=person,
+                proposed_by_detective=request.user,
+                rationale=serializer.validated_data["rationale"],
+            )
+            created.append(candidate)
+        return Response(SuspectCandidateSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
+
+
+class SergeantDecisionView(APIView):
+    permission_classes = [RoleRequiredPermission]
+    required_roles = [ROLE_SERGEANT]
+
+    def post(self, request, case_id, suspect_id):
+        candidate = get_object_or_404(SuspectCandidate, id=suspect_id, case_id=case_id)
+        serializer = SergeantDecisionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        approve = serializer.validated_data["approve"]
+        message = serializer.validated_data.get("message", "")
+        if approve:
+            candidate.status = "approved"
+            WantedRecord.objects.get_or_create(person=candidate.person, case=candidate.case)
+        else:
+            candidate.status = "rejected"
+        candidate.sergeant_message = message
+        candidate.decided_at = timezone.now()
+        candidate.save()
+        return Response(SuspectCandidateSerializer(candidate).data, status=status.HTTP_200_OK)
+
+
+class MostWantedPublicView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        results = compute_most_wanted()
+        serializer = MostWantedSerializer(results, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class MostWantedPoliceView(APIView):
+    permission_classes = [RoleRequiredPermission]
+    required_roles = [ROLE_POLICE_OFFICER, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
+
+    def get(self, request):
+        results = compute_most_wanted()
+        serializer = MostWantedSerializer(results, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SuspectStatusUpdateView(APIView):
+    permission_classes = [RoleRequiredPermission]
+    required_roles = [ROLE_POLICE_OFFICER, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
+
+    def post(self, request, person_id):
+        person = get_object_or_404(Person, id=person_id)
+        status_value = request.data.get("status")
+        case_id = request.data.get("case_id")
+        if status_value not in ["wanted", "arrested", "cleared"]:
+            return Response(
+                {"error": {"code": "validation_error", "message": "Invalid status", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not case_id:
+            return Response(
+                {"error": {"code": "validation_error", "message": "case_id is required", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        case = get_object_or_404(Case, id=case_id)
+        record = WantedRecord.objects.filter(person=person, case=case).first() if case else None
+        if not record and case:
+            record = WantedRecord.objects.create(person=person, case=case)
+        if record:
+            record.status = status_value
+            if status_value in ["arrested", "cleared"]:
+                record.ended_at = timezone.now()
+            record.save()
+        return Response(PersonSerializer(person).data, status=status.HTTP_200_OK)
