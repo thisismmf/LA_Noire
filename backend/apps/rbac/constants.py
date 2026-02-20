@@ -1,0 +1,33 @@
+ROLE_SYSTEM_ADMIN = "system-administrator"
+ROLE_POLICE_CHIEF = "police-chief"
+ROLE_CAPTAIN = "captain"
+ROLE_SERGEANT = "sergeant"
+ROLE_DETECTIVE = "detective"
+ROLE_POLICE_OFFICER = "police-officer"
+ROLE_PATROL_OFFICER = "patrol-officer"
+ROLE_CADET = "cadet"
+ROLE_COMPLAINANT = "complainant"
+ROLE_WITNESS = "witness"
+ROLE_SUSPECT = "suspect"
+ROLE_CRIMINAL = "criminal"
+ROLE_JUDGE = "judge"
+ROLE_CORONER = "coroner"
+ROLE_BASE_USER = "base-user"
+
+SYSTEM_ROLE_SLUGS = [
+    ROLE_SYSTEM_ADMIN,
+    ROLE_POLICE_CHIEF,
+    ROLE_CAPTAIN,
+    ROLE_SERGEANT,
+    ROLE_DETECTIVE,
+    ROLE_POLICE_OFFICER,
+    ROLE_PATROL_OFFICER,
+    ROLE_CADET,
+    ROLE_COMPLAINANT,
+    ROLE_WITNESS,
+    ROLE_SUSPECT,
+    ROLE_CRIMINAL,
+    ROLE_JUDGE,
+    ROLE_CORONER,
+    ROLE_BASE_USER,
+]
