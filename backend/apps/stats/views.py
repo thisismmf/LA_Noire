@@ -1,0 +1,50 @@
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from apps.cases.models import Case
+from apps.cases.constants import CaseStatus
+from apps.rbac.utils import get_user_role_slugs
+from apps.rbac.constants import (
+    ROLE_CADET,
+    ROLE_POLICE_OFFICER,
+    ROLE_PATROL_OFFICER,
+    ROLE_DETECTIVE,
+    ROLE_SERGEANT,
+    ROLE_CAPTAIN,
+    ROLE_POLICE_CHIEF,
+    ROLE_CORONER,
+    ROLE_SYSTEM_ADMIN,
+    ROLE_JUDGE,
+)
+from apps.accounts.models import User
+
+
+EMPLOYEE_ROLES = {
+    ROLE_CADET,
+    ROLE_POLICE_OFFICER,
+    ROLE_PATROL_OFFICER,
+    ROLE_DETECTIVE,
+    ROLE_SERGEANT,
+    ROLE_CAPTAIN,
+    ROLE_POLICE_CHIEF,
+    ROLE_CORONER,
+    ROLE_SYSTEM_ADMIN,
+    ROLE_JUDGE,
+}
+
+
+class StatsOverviewView(APIView):
+    def get(self, request):
+        total_solved = Case.objects.filter(status=CaseStatus.CLOSED_SOLVED).count()
+        active_cases = Case.objects.filter(status__in=[CaseStatus.ACTIVE, CaseStatus.PENDING_SUPERIOR_APPROVAL]).count()
+        employees = 0
+        for user in User.objects.all():
+            roles = set(get_user_role_slugs(user))
+            if roles.intersection(EMPLOYEE_ROLES):
+                employees += 1
+        data = {
+            "total_solved_cases": total_solved,
+            "total_employees": employees,
+            "active_cases": active_cases,
+        }
+        return Response(data, status=status.HTTP_200_OK)
