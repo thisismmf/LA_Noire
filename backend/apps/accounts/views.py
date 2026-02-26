@@ -3,7 +3,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, UserWithRolesSerializer
+from .serializers import RegisterSerializer, LoginSerializer, LoginResponseSerializer, UserSerializer, UserWithRolesSerializer
 from .models import User
 from apps.rbac.permissions import RoleRequiredPermission
 from apps.rbac.constants import ROLE_SYSTEM_ADMIN
@@ -18,7 +18,15 @@ class RegisterView(generics.CreateAPIView):
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
-    @extend_schema(request=LoginSerializer, responses={200: None})
+    @extend_schema(
+        request=LoginSerializer,
+        responses={200: LoginResponseSerializer},
+        description=(
+            "Authenticate with username, email, phone number, or national ID and return a JWT token pair.\n\n"
+            "Authentication: No JWT required.\n\n"
+            "Errors use the envelope `{error: {code, message, details}}`."
+        ),
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

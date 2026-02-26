@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from apps.rbac.models import Role, UserRole
 from apps.rbac.constants import ROLE_BASE_USER
@@ -82,3 +81,13 @@ class LoginSerializer(serializers.Serializer):
     def get_tokens(self, user):
         refresh = RefreshToken.for_user(user)
         return {"refresh": str(refresh), "access": str(refresh.access_token)}
+
+
+class TokenPairSerializer(serializers.Serializer):
+    refresh = serializers.CharField(read_only=True)
+    access = serializers.CharField(read_only=True)
+
+
+class LoginResponseSerializer(serializers.Serializer):
+    tokens = TokenPairSerializer(read_only=True)
+    user = UserSerializer(read_only=True)

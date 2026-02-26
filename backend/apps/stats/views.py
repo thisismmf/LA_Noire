@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework import serializers
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
@@ -42,7 +43,17 @@ class StatsOverviewSerializer(serializers.Serializer):
 
 
 class StatsOverviewView(APIView):
-    @extend_schema(request=None, responses={200: StatsOverviewSerializer})
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        request=None,
+        responses={200: StatsOverviewSerializer},
+        description=(
+            "Return public homepage counters for resolved cases, active cases, and organization employees.\n\n"
+            "Authentication: No JWT required.\n\n"
+            "Errors use the envelope `{error: {code, message, details}}`."
+        ),
+    )
     def get(self, request):
         total_solved = Case.objects.filter(status=CaseStatus.CLOSED_SOLVED).count()
         active_cases = Case.objects.filter(status__in=[CaseStatus.ACTIVE, CaseStatus.PENDING_SUPERIOR_APPROVAL]).count()
