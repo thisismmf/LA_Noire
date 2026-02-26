@@ -310,6 +310,86 @@ a {
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 }
 
+.ui-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.ui-button {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.ui-button-primary {
+  background: linear-gradient(140deg, var(--primary), var(--primary-strong));
+  color: #faf5eb;
+}
+
+.ui-button-secondary {
+  background: #eadfc9;
+  color: #1f273b;
+}
+
+.ui-button-danger {
+  background: #6f1d1d;
+  color: #fff4f4;
+}
+
+.ui-button-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.ui-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ui-skeleton {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #e8e1d5 25%, #f4efe8 37%, #e8e1d5 63%);
+  background-size: 400% 100%;
+  animation: skeleton-pulse 1.4s infinite;
+  height: 1rem;
+}
+
+.error-alert {
+  border-radius: 12px;
+  border: 1px solid #d89b9b;
+  background: #fff1f1;
+  color: #7a2121;
+  padding: 0.65rem 0.8rem;
+}
+
+.empty-state {
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: #fcf8ef;
+  padding: 1rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
