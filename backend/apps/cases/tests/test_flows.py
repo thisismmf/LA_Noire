@@ -14,15 +14,18 @@ from apps.rbac.constants import (
     ROLE_CAPTAIN,
     ROLE_CORONER,
     ROLE_SERGEANT,
+    ROLE_SYSTEM_ADMIN,
+    ROLE_JUDGE,
 )
 from apps.cases.models import Complaint, Case, CaseComplainant
 from apps.cases.constants import ComplaintStatus, CrimeLevel, CaseStatus, CaseSourceType
 from apps.cases.models import CaseAssignment
-from apps.suspects.models import Person, WantedRecord
+from apps.suspects.models import Person, WantedRecord, SuspectCandidate
 from apps.suspects.utils import compute_most_wanted
 from apps.rewards.models import RewardCode
 from apps.payments.models import Payment
 from apps.payments.gateway import sign_payload
+from apps.interrogations.models import Interrogation
 
 
 class CaseFlowTests(APITestCase):
@@ -37,6 +40,8 @@ class CaseFlowTests(APITestCase):
             ROLE_CAPTAIN,
             ROLE_POLICE_CHIEF,
             ROLE_CORONER,
+            ROLE_SYSTEM_ADMIN,
+            ROLE_JUDGE,
         ]:
             Role.objects.get_or_create(slug=slug, defaults={"name": slug, "is_system": True})
 
@@ -246,9 +251,11 @@ class CaseFlowTests(APITestCase):
             source_type=CaseSourceType.COMPLAINT,
             created_by=sergeant,
         )
+        person = Person.objects.create(full_name="Payment Target")
+        WantedRecord.objects.create(case=case, person=person, status="wanted")
         res = self.client.post(
             "/api/v1/payments/create/",
-            {"case_id": case.id, "amount": 1000, "type": "bail"},
+            {"case_id": case.id, "person_id": person.id, "amount": 1000, "type": "bail"},
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
@@ -341,3 +348,295 @@ class CaseFlowTests(APITestCase):
             format="json",
         )
         self.assertEqual(approve_res.status_code, status.HTTP_200_OK)
+
+    def test_complaint_queue_filters_by_role(self):
+        creator = self.create_user("compl_creator", ROLE_BASE_USER)
+        cadet = self.create_user("cadet_queue", ROLE_CADET)
+        officer = self.create_user("officer_queue", ROLE_POLICE_OFFICER)
+        admin = self.create_user("admin_queue", ROLE_SYSTEM_ADMIN)
+        Complaint.objects.create(
+            title="C1",
+            description="D",
+            crime_level=CrimeLevel.LEVEL_3,
+            location="L",
+            status=ComplaintStatus.PENDING_CADET_REVIEW,
+            created_by=creator,
+        )
+        Complaint.objects.create(
+            title="C2",
+            description="D",
+            crime_level=CrimeLevel.LEVEL_3,
+            location="L",
+            status=ComplaintStatus.RETURNED_TO_CADET,
+            created_by=creator,
+        )
+        Complaint.objects.create(
+            title="C3",
+            description="D",
+            crime_level=CrimeLevel.LEVEL_3,
+            location="L",
+            status=ComplaintStatus.PENDING_OFFICER_REVIEW,
+            created_by=creator,
+        )
+        self.client.force_authenticate(user=cadet)
+        cadet_res = self.client.get("/api/v1/cases/complaints/queue/")
+        self.assertEqual(cadet_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(cadet_res.data), 2)
+        self.client.force_authenticate(user=officer)
+        officer_res = self.client.get("/api/v1/cases/complaints/queue/")
+        self.assertEqual(officer_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(officer_res.data), 1)
+        self.client.force_authenticate(user=admin)
+        admin_res = self.client.get("/api/v1/cases/complaints/queue/?status=pending_officer")
+        self.assertEqual(admin_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(admin_res.data), 1)
+
+    def test_tip_review_queue_filters_by_role(self):
+        base_user = self.create_user("tip_base", ROLE_BASE_USER)
+        officer = self.create_user("tip_officer", ROLE_POLICE_OFFICER)
+        detective = self.create_user("tip_detective", ROLE_DETECTIVE)
+        admin = self.create_user("tip_admin", ROLE_SYSTEM_ADMIN)
+        self.client.force_authenticate(user=base_user)
+        tip1 = self.client.post("/api/v1/tips/", {"content": "tip1"}, format="json").data["id"]
+        tip2 = self.client.post("/api/v1/tips/", {"content": "tip2"}, format="json").data["id"]
+        self.client.force_authenticate(user=officer)
+        self.client.post(f"/api/v1/tips/{tip1}/officer-review/", {"approve": True}, format="json")
+        officer_queue = self.client.get("/api/v1/tips/review-queue/")
+        self.assertEqual(officer_queue.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(officer_queue.data), 1)
+        self.assertEqual(officer_queue.data[0]["id"], tip2)
+        self.client.force_authenticate(user=detective)
+        detective_queue = self.client.get("/api/v1/tips/review-queue/")
+        self.assertEqual(detective_queue.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(detective_queue.data), 1)
+        self.assertEqual(detective_queue.data[0]["id"], tip1)
+        self.client.force_authenticate(user=admin)
+        admin_queue = self.client.get("/api/v1/tips/review-queue/")
+        self.assertEqual(admin_queue.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(admin_queue.data), 2)
+
+    def test_sergeant_cannot_decide_suspect_for_unrelated_case(self):
+        detective = self.create_user("det_unrel", ROLE_DETECTIVE)
+        sergeant = self.create_user("sgt_unrel", ROLE_SERGEANT)
+        case = Case.objects.create(
+            title="Case",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_2,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=detective,
+        )
+        CaseAssignment.objects.create(case=case, user=detective, role_in_case="detective")
+        person = Person.objects.create(full_name="Suspect")
+        candidate = SuspectCandidate.objects.create(
+            case=case,
+            person=person,
+            proposed_by_detective=detective,
+            rationale="R",
+        )
+        self.client.force_authenticate(user=sergeant)
+        res = self.client.post(
+            f"/api/v1/cases/{case.id}/suspects/{candidate.id}/sergeant-decision/",
+            {"approve": True},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_detective_cannot_score_interrogation_for_unrelated_case(self):
+        detective_assigned = self.create_user("det_assigned", ROLE_DETECTIVE)
+        detective_other = self.create_user("det_other", ROLE_DETECTIVE)
+        case = Case.objects.create(
+            title="Case",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_2,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=detective_assigned,
+        )
+        CaseAssignment.objects.create(case=case, user=detective_assigned, role_in_case="detective")
+        person = Person.objects.create(full_name="P")
+        interrogation = Interrogation.objects.create(case=case, suspect=person, status="pending_sergeant")
+        self.client.force_authenticate(user=detective_other)
+        res = self.client.patch(
+            f"/api/v1/interrogations/{interrogation.id}/detective-score/",
+            {"score": 7},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_case_report_requires_case_access(self):
+        detective = self.create_user("det_report", ROLE_DETECTIVE)
+        judge = self.create_user("judge_report", ROLE_JUDGE)
+        case = Case.objects.create(
+            title="Case",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_1,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=detective,
+        )
+        self.client.force_authenticate(user=judge)
+        res = self.client.get(f"/api/v1/cases/{case.id}/report/")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_board_disallows_cross_case_evidence_reference(self):
+        detective = self.create_user("det_board", ROLE_DETECTIVE)
+        self.client.force_authenticate(user=detective)
+        case_a = Case.objects.create(
+            title="A",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_2,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=detective,
+        )
+        case_b = Case.objects.create(
+            title="B",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_2,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=detective,
+        )
+        CaseAssignment.objects.create(case=case_a, user=detective, role_in_case="detective")
+        ev_res = self.client.post(
+            f"/api/v1/cases/{case_a.id}/evidence/",
+            {"evidence_type": "other", "title": "E", "description": "Desc"},
+            format="json",
+        )
+        self.assertEqual(ev_res.status_code, status.HTTP_201_CREATED)
+        evidence_id = ev_res.data["id"]
+        board_item_res = self.client.post(
+            f"/api/v1/cases/{case_b.id}/board/items/",
+            {"item_type": "EVIDENCE_REF", "evidence": evidence_id},
+            format="json",
+        )
+        self.assertEqual(board_item_res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_evidence_description_is_required(self):
+        detective = self.create_user("det_desc", ROLE_DETECTIVE)
+        self.client.force_authenticate(user=detective)
+        case = Case.objects.create(
+            title="Case",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_2,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=detective,
+        )
+        CaseAssignment.objects.create(case=case, user=detective, role_in_case="detective")
+        res = self.client.post(
+            f"/api/v1/cases/{case.id}/evidence/",
+            {"evidence_type": "other", "title": "No Desc"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reward_lookup_uses_stored_amount(self):
+        base_user = self.create_user("reward_base", ROLE_BASE_USER)
+        officer = self.create_user("reward_officer", ROLE_POLICE_OFFICER)
+        detective = self.create_user("reward_det", ROLE_DETECTIVE)
+        case = Case.objects.create(
+            title="RewardCase",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_1,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=officer,
+        )
+        person = Person.objects.create(full_name="RewardPerson")
+        record = WantedRecord.objects.create(case=case, person=person, status="wanted")
+        record.started_at = timezone.now() - timedelta(days=40)
+        record.save(update_fields=["started_at"])
+        self.client.force_authenticate(user=base_user)
+        tip_res = self.client.post(
+            "/api/v1/tips/",
+            {"content": "Useful", "person": person.id},
+            format="json",
+        )
+        tip_id = tip_res.data["id"]
+        self.client.force_authenticate(user=officer)
+        self.client.post(f"/api/v1/tips/{tip_id}/officer-review/", {"approve": True}, format="json")
+        self.client.force_authenticate(user=detective)
+        self.client.post(f"/api/v1/tips/{tip_id}/detective-review/", {"approve": True}, format="json")
+        reward = RewardCode.objects.get(tip_id=tip_id)
+        self.assertGreater(reward.amount, 0)
+        record.status = "cleared"
+        record.ended_at = timezone.now()
+        record.save(update_fields=["status", "ended_at"])
+        self.client.force_authenticate(user=officer)
+        lookup = self.client.get(f"/api/v1/rewards/lookup/?national_id={base_user.national_id}&code={reward.code}")
+        self.assertEqual(lookup.status_code, status.HTTP_200_OK)
+        self.assertEqual(lookup.data["reward"]["amount"], reward.amount)
+
+    def test_payment_validation_requires_person_and_case_status(self):
+        sergeant = self.create_user("sgt_payment_rules", ROLE_SERGEANT)
+        self.client.force_authenticate(user=sergeant)
+        case_lvl2 = Case.objects.create(
+            title="C2",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_2,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=sergeant,
+        )
+        person = Person.objects.create(full_name="NoLink")
+        missing_person = self.client.post(
+            "/api/v1/payments/create/",
+            {"case_id": case_lvl2.id, "amount": 1000, "type": "bail"},
+            format="json",
+        )
+        self.assertEqual(missing_person.status_code, status.HTTP_400_BAD_REQUEST)
+        not_linked = self.client.post(
+            "/api/v1/payments/create/",
+            {"case_id": case_lvl2.id, "person_id": person.id, "amount": 1000, "type": "bail"},
+            format="json",
+        )
+        self.assertEqual(not_linked.status_code, status.HTTP_400_BAD_REQUEST)
+        record = WantedRecord.objects.create(case=case_lvl2, person=person, status="cleared")
+        invalid_status = self.client.post(
+            "/api/v1/payments/create/",
+            {"case_id": case_lvl2.id, "person_id": person.id, "amount": 1000, "type": "bail"},
+            format="json",
+        )
+        self.assertEqual(invalid_status.status_code, status.HTTP_400_BAD_REQUEST)
+        record.status = "wanted"
+        record.save(update_fields=["status"])
+        valid_bail = self.client.post(
+            "/api/v1/payments/create/",
+            {"case_id": case_lvl2.id, "person_id": person.id, "amount": 1000, "type": "bail"},
+            format="json",
+        )
+        self.assertEqual(valid_bail.status_code, status.HTTP_201_CREATED)
+        case_lvl3 = Case.objects.create(
+            title="C3",
+            description="Desc",
+            crime_level=CrimeLevel.LEVEL_3,
+            location="Loc",
+            status=CaseStatus.ACTIVE,
+            source_type=CaseSourceType.COMPLAINT,
+            created_by=sergeant,
+        )
+        record_fine = WantedRecord.objects.create(case=case_lvl3, person=person, status="wanted")
+        fine_invalid = self.client.post(
+            "/api/v1/payments/create/",
+            {"case_id": case_lvl3.id, "person_id": person.id, "amount": 2000, "type": "fine"},
+            format="json",
+        )
+        self.assertEqual(fine_invalid.status_code, status.HTTP_400_BAD_REQUEST)
+        record_fine.status = "arrested"
+        record_fine.save(update_fields=["status"])
+        fine_valid = self.client.post(
+            "/api/v1/payments/create/",
+            {"case_id": case_lvl3.id, "person_id": person.id, "amount": 2000, "type": "fine"},
+            format="json",
+        )
+        self.assertEqual(fine_valid.status_code, status.HTTP_201_CREATED)
