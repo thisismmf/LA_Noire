@@ -204,3 +204,12 @@ export type Role = {
   description: string;
   is_system: boolean;
 };
+
+export type Notification = {
+  id: number;
+  case: number | null;
+  type: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+  read_at: string | null;
+};

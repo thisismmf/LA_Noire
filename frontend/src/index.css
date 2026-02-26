@@ -466,6 +466,11 @@ a {
   background: #f9f4e8;
 }
 
+.queue-item.unread-row {
+  border-color: #b56f6f;
+  background: #fff5f5;
+}
+
 .queue-item textarea {
   border-radius: 10px;
   border: 1px solid var(--border);
