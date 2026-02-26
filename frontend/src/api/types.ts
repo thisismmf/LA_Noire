@@ -213,3 +213,33 @@ export type Notification = {
   created_at: string;
   read_at: string | null;
 };
+
+export type Tip = {
+  id: number;
+  case: number | null;
+  person: number | null;
+  content: string;
+  status: string;
+  created_at: string;
+  attachments: Array<{ id: number; file: string }>;
+};
+
+export type RewardLookupResponse = {
+  user: {
+    id: number;
+    username: string;
+    national_id: string;
+  };
+  tip: {
+    id: number;
+    content: string;
+    status: string;
+  };
+  reward: {
+    code: string;
+    issued_at: string;
+    redeemed_at: string | null;
+    status: string;
+    amount: number;
+  };
+};
