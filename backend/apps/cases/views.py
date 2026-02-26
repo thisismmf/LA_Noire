@@ -5,7 +5,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from apps.rbac.permissions import RoleRequiredPermission
 from apps.rbac.constants import (
     ROLE_CADET,
@@ -29,6 +29,7 @@ from .serializers import (
     OfficerReviewSerializer,
     CrimeSceneReportSerializer,
     CrimeSceneApproveSerializer,
+    CrimeSceneActionResponseSerializer,
     CaseSerializer,
     AddComplainantSerializer,
     ComplainantReviewSerializer,
@@ -41,6 +42,8 @@ from .policies import get_required_approver_role_slug, POLICE_ROLES
 
 
 def _case_queryset_for_user(user):
+    if not user or not user.is_authenticated:
+        return Case.objects.none()
     if user_has_role(user, [ROLE_SYSTEM_ADMIN]):
         return Case.objects.all()
     return Case.objects.filter(
@@ -71,6 +74,52 @@ class ComplaintDetailView(generics.RetrieveAPIView):
         if user_has_role(user, [ROLE_SYSTEM_ADMIN, ROLE_CADET, ROLE_POLICE_OFFICER]):
             return Complaint.objects.all()
         return Complaint.objects.filter(created_by=user)
+
+
+class ComplaintQueueView(generics.ListAPIView):
+    serializer_class = ComplaintSerializer
+    permission_classes = [RoleRequiredPermission]
+    required_roles = [ROLE_CADET, ROLE_POLICE_OFFICER, ROLE_SYSTEM_ADMIN]
+
+    @extend_schema(
+        request=None,
+        parameters=[
+            OpenApiParameter(name="status", type=str, required=False, location=OpenApiParameter.QUERY),
+            OpenApiParameter(
+                name="ordering",
+                type=str,
+                required=False,
+                location=OpenApiParameter.QUERY,
+                description="Use `created_at` or `-created_at`",
+            ),
+        ],
+        responses={200: ComplaintSerializer(many=True)},
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        user = self.request.user
+        ordering = self.request.query_params.get("ordering", "-created_at")
+        if ordering not in ("created_at", "-created_at"):
+            ordering = "-created_at"
+        status_filter = self.request.query_params.get("status")
+        if user_has_role(user, [ROLE_SYSTEM_ADMIN]):
+            queryset = Complaint.objects.all()
+            if status_filter:
+                queryset = queryset.filter(status=status_filter)
+            return queryset.order_by(ordering)
+        if user_has_role(user, [ROLE_CADET]):
+            cadet_statuses = [ComplaintStatus.PENDING_CADET_REVIEW, ComplaintStatus.RETURNED_TO_CADET]
+            queryset = Complaint.objects.filter(status__in=cadet_statuses)
+            if status_filter:
+                queryset = queryset.filter(status=status_filter)
+            return queryset.order_by(ordering)
+        officer_statuses = [ComplaintStatus.PENDING_OFFICER_REVIEW]
+        queryset = Complaint.objects.filter(status__in=officer_statuses)
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        return queryset.order_by(ordering)
 
 
 class ComplaintResubmitView(APIView):
@@ -199,7 +248,7 @@ class CrimeSceneCreateView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_POLICE_OFFICER, ROLE_PATROL_OFFICER, ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF]
 
-    @extend_schema(request=CrimeSceneReportSerializer, responses={201: None})
+    @extend_schema(request=CrimeSceneReportSerializer, responses={201: CrimeSceneActionResponseSerializer})
     def post(self, request):
         serializer = CrimeSceneReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -235,12 +284,13 @@ class CrimeSceneApproveView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_POLICE_OFFICER, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF]
 
-    @extend_schema(request=CrimeSceneApproveSerializer, responses={200: None})
-    def post(self, request, id=None, case_id=None):
-        if case_id is not None:
-            report = get_object_or_404(CrimeSceneReport, case_id=case_id)
-        else:
-            report = get_object_or_404(CrimeSceneReport, id=id)
+    @extend_schema(
+        request=CrimeSceneApproveSerializer,
+        responses={200: CrimeSceneActionResponseSerializer},
+        operation_id="cases_crime_scene_approve_by_case",
+    )
+    def post(self, request, case_id):
+        report = get_object_or_404(CrimeSceneReport, case_id=case_id)
         if report.status != CrimeSceneStatus.PENDING_APPROVAL:
             return Response(
                 {"error": {"code": "invalid_state", "message": "Report not pending approval", "details": {}}},
@@ -353,12 +403,13 @@ class CaseAssignmentListCreateView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
 
+    @extend_schema(request=None, responses={200: CaseAssignmentSerializer(many=True)})
     def get(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
         assignments = CaseAssignment.objects.filter(case=case).select_related("user")
         return Response(CaseAssignmentSerializer(assignments, many=True).data, status=status.HTTP_200_OK)
 
-    @extend_schema(request=CaseAssignmentUpsertSerializer, responses={201: CaseAssignmentSerializer})
+    @extend_schema(request=CaseAssignmentUpsertSerializer, responses={200: CaseAssignmentSerializer, 201: CaseAssignmentSerializer})
     def post(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
         serializer = CaseAssignmentUpsertSerializer(data=request.data)
@@ -394,6 +445,7 @@ class CaseAssignmentDeleteView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
 
+    @extend_schema(request=None, responses={204: None})
     def delete(self, request, case_id, id):
         case = get_object_or_404(Case, id=case_id)
         assignment = get_object_or_404(CaseAssignment, id=id, case=case)

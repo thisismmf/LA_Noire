@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 from apps.rbac.permissions import RoleRequiredPermission
 from apps.rbac.constants import ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN
 from apps.cases.models import Case
@@ -17,6 +18,7 @@ class BoardDetailView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = BOARD_ROLES
 
+    @extend_schema(request=None, responses={200: DetectiveBoardSerializer})
     def get(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
@@ -32,6 +34,7 @@ class BoardItemCreateView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = BOARD_ROLES
 
+    @extend_schema(request=BoardItemSerializer, responses={201: BoardItemSerializer})
     def post(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
@@ -47,6 +50,12 @@ class BoardItemCreateView(APIView):
                 {"error": {"code": "validation_error", "message": "evidence is required for EVIDENCE_REF", "details": {}}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        evidence = serializer.validated_data.get("evidence")
+        if serializer.validated_data["item_type"] == "EVIDENCE_REF" and evidence and evidence.case_id != board.case_id:
+            return Response(
+                {"error": {"code": "validation_error", "message": "evidence must belong to the same case", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         item = serializer.save(board=board, created_by=request.user)
         return Response(BoardItemSerializer(item).data, status=status.HTTP_201_CREATED)
 
@@ -55,6 +64,7 @@ class BoardItemDetailView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = BOARD_ROLES
 
+    @extend_schema(request=BoardItemSerializer, responses={200: BoardItemSerializer})
     def patch(self, request, id):
         item = get_object_or_404(BoardItem, id=id)
         if not can_user_access_case(request.user, item.board.case):
@@ -64,9 +74,23 @@ class BoardItemDetailView(APIView):
             )
         serializer = BoardItemSerializer(item, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        target_item_type = serializer.validated_data.get("item_type", item.item_type)
+        target_evidence = serializer.validated_data.get("evidence", item.evidence)
+        if target_item_type == "EVIDENCE_REF":
+            if not target_evidence:
+                return Response(
+                    {"error": {"code": "validation_error", "message": "evidence is required for EVIDENCE_REF", "details": {}}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if target_evidence.case_id != item.board.case_id:
+                return Response(
+                    {"error": {"code": "validation_error", "message": "evidence must belong to the same case", "details": {}}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(request=None, responses={204: None})
     def delete(self, request, id):
         item = get_object_or_404(BoardItem, id=id)
         if not can_user_access_case(request.user, item.board.case):
@@ -82,6 +106,7 @@ class BoardConnectionCreateView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = BOARD_ROLES
 
+    @extend_schema(request=BoardConnectionSerializer, responses={201: BoardConnectionSerializer})
     def post(self, request):
         serializer = BoardConnectionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -105,6 +130,7 @@ class BoardConnectionDeleteView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = BOARD_ROLES
 
+    @extend_schema(request=None, responses={204: None})
     def delete(self, request, id):
         connection = get_object_or_404(BoardConnection, id=id)
         if not can_user_access_case(request.user, connection.board.case):

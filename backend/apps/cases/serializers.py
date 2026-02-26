@@ -99,6 +99,11 @@ class CrimeSceneApproveSerializer(serializers.Serializer):
     approve = serializers.BooleanField()
 
 
+class CrimeSceneActionResponseSerializer(serializers.Serializer):
+    case = serializers.DictField()
+    crime_scene_report_id = serializers.IntegerField()
+
+
 class CaseSerializer(serializers.ModelSerializer):
     complainants = CaseComplainantSerializer(many=True, read_only=True)
 

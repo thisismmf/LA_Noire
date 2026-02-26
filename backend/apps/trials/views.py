@@ -2,9 +2,11 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 from apps.rbac.permissions import RoleRequiredPermission
 from apps.rbac.constants import ROLE_JUDGE, ROLE_CAPTAIN, ROLE_POLICE_CHIEF
 from apps.cases.models import Case
+from apps.cases.policies import can_user_access_case
 from apps.cases.serializers import CaseSerializer
 from apps.cases.models import CaseReview, CrimeSceneReport, CaseAssignment
 from apps.evidence.models import Evidence
@@ -15,15 +17,21 @@ from apps.interrogations.models import Interrogation
 from apps.interrogations.serializers import InterrogationSerializer
 from apps.rbac.utils import get_user_role_slugs
 from .models import Trial
-from .serializers import TrialSerializer, TrialDecisionSerializer
+from .serializers import TrialSerializer, TrialDecisionSerializer, CaseReportResponseSerializer
 
 
 class CaseReportView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_JUDGE, ROLE_CAPTAIN, ROLE_POLICE_CHIEF]
 
+    @extend_schema(request=None, responses={200: CaseReportResponseSerializer})
     def get(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
+        if not can_user_access_case(request.user, case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         evidence = Evidence.objects.filter(case=case)
         suspects = SuspectCandidate.objects.filter(case=case)
         interrogations = Interrogation.objects.filter(case=case)
@@ -84,8 +92,14 @@ class TrialDecisionView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_JUDGE]
 
+    @extend_schema(request=TrialDecisionSerializer, responses={200: TrialSerializer})
     def post(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
+        if not can_user_access_case(request.user, case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = TrialDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         trial, _ = Trial.objects.update_or_create(

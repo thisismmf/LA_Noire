@@ -104,6 +104,7 @@ class EvidenceListCreateView(APIView):
         self._notify_detectives(case, evidence)
         return Response(EvidenceSerializer(evidence).data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(request=None, responses={200: EvidenceSerializer(many=True)})
     def get(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
@@ -140,6 +141,7 @@ class EvidenceDetailView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = ALLOWED_EVIDENCE_ROLES
 
+    @extend_schema(request=None, responses={200: EvidenceSerializer})
     def get(self, request, id):
         evidence = get_object_or_404(Evidence, id=id)
         if not can_user_access_case(request.user, evidence.case):
@@ -156,6 +158,7 @@ class EvidenceDetailView(APIView):
             )
         return Response(EvidenceSerializer(evidence).data, status=status.HTTP_200_OK)
 
+    @extend_schema(request=EvidenceSerializer, responses={200: EvidenceSerializer})
     def patch(self, request, id):
         evidence = get_object_or_404(Evidence, id=id)
         if not can_user_access_case(request.user, evidence.case):
@@ -231,6 +234,7 @@ class EvidenceDetailView(APIView):
             identity.save()
         return Response(EvidenceSerializer(evidence).data, status=status.HTTP_200_OK)
 
+    @extend_schema(request=None, responses={204: None})
     def delete(self, request, id):
         evidence = get_object_or_404(Evidence, id=id)
         if not can_user_access_case(request.user, evidence.case):

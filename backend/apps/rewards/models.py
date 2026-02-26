@@ -30,6 +30,7 @@ class RewardCode(models.Model):
     code = models.CharField(max_length=32, unique=True)
     tip = models.OneToOneField(Tip, on_delete=models.CASCADE, related_name="reward_code")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reward_codes")
+    amount = models.BigIntegerField(default=0)
     issued_at = models.DateTimeField(auto_now_add=True)
     redeemed_at = models.DateTimeField(null=True, blank=True)
 

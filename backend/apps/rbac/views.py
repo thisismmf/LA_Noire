@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from .models import Role, UserRole
 from .serializers import RoleSerializer, AssignRoleSerializer
 from .permissions import RoleRequiredPermission
-from .constants import ROLE_SYSTEM_ADMIN
+from .constants import ROLE_SYSTEM_ADMIN, SYSTEM_ROLE_SLUGS
 from apps.accounts.models import User
 
 
@@ -22,6 +22,36 @@ class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = RoleSerializer
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_SYSTEM_ADMIN]
+
+    def update(self, request, *args, **kwargs):
+        role = self.get_object()
+        if role.slug in SYSTEM_ROLE_SLUGS:
+            return Response(
+                {
+                    "error": {
+                        "code": "forbidden",
+                        "message": "System roles are immutable and cannot be modified",
+                        "details": {},
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        role = self.get_object()
+        if role.slug in SYSTEM_ROLE_SLUGS:
+            return Response(
+                {
+                    "error": {
+                        "code": "forbidden",
+                        "message": "System roles are immutable and cannot be deleted",
+                        "details": {},
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class AssignRoleView(APIView):

@@ -41,3 +41,8 @@ class MostWantedSerializer(serializers.Serializer):
     crime_degree = serializers.IntegerField()
     ranking_score = serializers.IntegerField()
     reward_amount = serializers.IntegerField()
+
+
+class SuspectStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["wanted", "arrested", "cleared"])
+    case_id = serializers.IntegerField()

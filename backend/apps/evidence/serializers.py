@@ -89,7 +89,7 @@ class EvidenceSerializer(serializers.ModelSerializer):
 class EvidenceCreateSerializer(serializers.Serializer):
     evidence_type = serializers.ChoiceField(choices=EvidenceType.choices)
     title = serializers.CharField()
-    description = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=True, allow_blank=False)
     witness_statement = WitnessStatementEvidenceSerializer(required=False)
     medical = MedicalEvidenceSerializer(required=False)
     vehicle = VehicleEvidenceSerializer(required=False)

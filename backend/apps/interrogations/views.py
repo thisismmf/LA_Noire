@@ -2,10 +2,12 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 from apps.rbac.permissions import RoleRequiredPermission
 from apps.rbac.constants import ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF
 from apps.cases.models import Case
 from apps.cases.constants import CrimeLevel
+from apps.cases.policies import can_user_access_case, is_user_assigned_to_case
 from apps.suspects.models import Person
 from .models import Interrogation
 from .serializers import (
@@ -21,6 +23,7 @@ class InterrogationCreateView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_DETECTIVE]
 
+    @extend_schema(request=InterrogationCreateSerializer, responses={201: InterrogationSerializer})
     def post(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
         from apps.cases.models import CaseAssignment
@@ -45,8 +48,14 @@ class DetectiveScoreView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_DETECTIVE]
 
+    @extend_schema(request=ScoreSerializer, responses={200: InterrogationSerializer})
     def patch(self, request, id):
         interrogation = get_object_or_404(Interrogation, id=id)
+        if not is_user_assigned_to_case(request.user, interrogation.case, role_in_case="detective"):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Detective not assigned to case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if interrogation.status not in ["pending_detective", "pending_sergeant"]:
             return Response(
                 {"error": {"code": "invalid_state", "message": "Not awaiting detective score", "details": {}}},
@@ -65,8 +74,14 @@ class SergeantScoreView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_SERGEANT]
 
+    @extend_schema(request=ScoreSerializer, responses={200: InterrogationSerializer})
     def patch(self, request, id):
         interrogation = get_object_or_404(Interrogation, id=id)
+        if not is_user_assigned_to_case(request.user, interrogation.case, role_in_case="sergeant"):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Sergeant not assigned to case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if interrogation.status != "pending_sergeant":
             return Response(
                 {"error": {"code": "invalid_state", "message": "Not awaiting sergeant score", "details": {}}},
@@ -84,8 +99,14 @@ class CaptainDecisionView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_CAPTAIN]
 
+    @extend_schema(request=CaptainDecisionSerializer, responses={200: InterrogationSerializer})
     def post(self, request, id):
         interrogation = get_object_or_404(Interrogation, id=id)
+        if not can_user_access_case(request.user, interrogation.case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if interrogation.status != "pending_captain":
             return Response(
                 {"error": {"code": "invalid_state", "message": "Not awaiting captain decision", "details": {}}},
@@ -107,8 +128,14 @@ class ChiefDecisionView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_POLICE_CHIEF]
 
+    @extend_schema(request=ChiefDecisionSerializer, responses={200: InterrogationSerializer})
     def post(self, request, id):
         interrogation = get_object_or_404(Interrogation, id=id)
+        if not can_user_access_case(request.user, interrogation.case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if interrogation.status != "pending_chief":
             return Response(
                 {"error": {"code": "invalid_state", "message": "Not awaiting chief decision", "details": {}}},

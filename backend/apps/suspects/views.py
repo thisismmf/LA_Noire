@@ -4,16 +4,19 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
+from drf_spectacular.utils import extend_schema
 from apps.rbac.permissions import RoleRequiredPermission
 from apps.rbac.constants import ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_SYSTEM_ADMIN, ROLE_POLICE_CHIEF, ROLE_CAPTAIN, ROLE_POLICE_OFFICER
 from .models import Person, SuspectCandidate, WantedRecord
 from apps.notifications.models import Notification
+from apps.cases.policies import can_user_access_case
 from .serializers import (
     SuspectProposalSerializer,
     SuspectCandidateSerializer,
     SergeantDecisionSerializer,
     MostWantedSerializer,
     PersonSerializer,
+    SuspectStatusUpdateSerializer,
 )
 from .utils import compute_most_wanted
 from apps.cases.models import Case
@@ -23,6 +26,7 @@ class SuspectProposalView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_DETECTIVE]
 
+    @extend_schema(request=SuspectProposalSerializer, responses={201: SuspectCandidateSerializer(many=True)})
     def post(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
         from apps.cases.models import CaseAssignment
@@ -54,8 +58,14 @@ class SergeantDecisionView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_SERGEANT]
 
+    @extend_schema(request=SergeantDecisionSerializer, responses={200: SuspectCandidateSerializer})
     def post(self, request, case_id, suspect_id):
         candidate = get_object_or_404(SuspectCandidate, id=suspect_id, case_id=case_id)
+        if not can_user_access_case(request.user, candidate.case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = SergeantDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         approve = serializer.validated_data["approve"]
@@ -85,6 +95,7 @@ class SergeantDecisionView(APIView):
 class MostWantedPublicView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(request=None, responses={200: MostWantedSerializer(many=True)})
     def get(self, request):
         results = compute_most_wanted()
         serializer = MostWantedSerializer(results, many=True)
@@ -95,6 +106,7 @@ class MostWantedPoliceView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_POLICE_OFFICER, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
 
+    @extend_schema(request=None, responses={200: MostWantedSerializer(many=True)})
     def get(self, request):
         results = compute_most_wanted()
         serializer = MostWantedSerializer(results, many=True)
@@ -105,20 +117,13 @@ class SuspectStatusUpdateView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_POLICE_OFFICER, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
 
+    @extend_schema(request=SuspectStatusUpdateSerializer, responses={200: PersonSerializer})
     def post(self, request, person_id):
         person = get_object_or_404(Person, id=person_id)
-        status_value = request.data.get("status")
-        case_id = request.data.get("case_id")
-        if status_value not in ["wanted", "arrested", "cleared"]:
-            return Response(
-                {"error": {"code": "validation_error", "message": "Invalid status", "details": {}}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not case_id:
-            return Response(
-                {"error": {"code": "validation_error", "message": "case_id is required", "details": {}}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer = SuspectStatusUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        status_value = serializer.validated_data["status"]
+        case_id = serializer.validated_data["case_id"]
         case = get_object_or_404(Case, id=case_id)
         record = WantedRecord.objects.filter(person=person, case=case).first() if case else None
         if not record and case:

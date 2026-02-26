@@ -21,6 +21,14 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class UserWithRolesSerializer(UserSerializer):
+    roles = serializers.ListField(child=serializers.CharField(), read_only=True)
+
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + ("roles",)
+        read_only_fields = fields
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 

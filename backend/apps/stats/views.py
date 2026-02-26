@@ -1,6 +1,8 @@
 from rest_framework import status
+from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 from apps.cases.models import Case
 from apps.cases.constants import CaseStatus
 from apps.rbac.utils import get_user_role_slugs
@@ -33,7 +35,14 @@ EMPLOYEE_ROLES = {
 }
 
 
+class StatsOverviewSerializer(serializers.Serializer):
+    total_solved_cases = serializers.IntegerField()
+    total_employees = serializers.IntegerField()
+    active_cases = serializers.IntegerField()
+
+
 class StatsOverviewView(APIView):
+    @extend_schema(request=None, responses={200: StatsOverviewSerializer})
     def get(self, request):
         total_solved = Case.objects.filter(status=CaseStatus.CLOSED_SOLVED).count()
         active_cases = Case.objects.filter(status__in=[CaseStatus.ACTIVE, CaseStatus.PENDING_SUPERIOR_APPROVAL]).count()
