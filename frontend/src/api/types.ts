@@ -243,3 +243,22 @@ export type RewardLookupResponse = {
     amount: number;
   };
 };
+
+export type Payment = {
+  id: number;
+  payer: number | null;
+  case: number | null;
+  person: number | null;
+  amount: number;
+  type: "bail" | "fine";
+  status: "created" | "pending" | "success" | "failed";
+  gateway_ref: string;
+  created_at: string;
+  verified_at: string | null;
+};
+
+export type PaymentCreateResponse = {
+  payment: Payment;
+  redirect_url: string;
+  signature: string;
+};
