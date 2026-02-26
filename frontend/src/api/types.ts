@@ -95,3 +95,35 @@ export type CaseAssignment = {
   role_in_case: "detective" | "officer" | "sergeant";
   assigned_at: string;
 };
+
+export type EvidenceType = "witness_statement" | "medical" | "vehicle" | "identity_document" | "other";
+
+export type Evidence = {
+  id: number;
+  case: number;
+  title: string;
+  description: string;
+  evidence_type: EvidenceType;
+  created_at: string;
+  created_by: number | null;
+  witness_statement?: {
+    transcription: string;
+    media: Array<{ id: number; file: string; media_type: string }>;
+  };
+  medical?: {
+    forensic_result: string;
+    identity_db_result: string;
+    status: string;
+    images: Array<{ id: number; image: string }>;
+  };
+  vehicle?: {
+    model: string;
+    color: string;
+    license_plate: string;
+    serial_number: string;
+  };
+  identity_document?: {
+    owner_full_name: string;
+    data: Record<string, string>;
+  };
+};
