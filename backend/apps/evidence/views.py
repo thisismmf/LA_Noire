@@ -16,6 +16,7 @@ from apps.rbac.constants import (
 )
 from apps.rbac.utils import user_has_role
 from apps.cases.models import Case, CaseAssignment
+from apps.cases.policies import can_user_access_case
 from apps.notifications.models import Notification
 from .models import (
     Evidence,
@@ -49,6 +50,11 @@ class EvidenceListCreateView(APIView):
     @extend_schema(request=EvidenceCreateSerializer, responses={201: EvidenceSerializer})
     def post(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
+        if not can_user_access_case(request.user, case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if user_has_role(request.user, [ROLE_DETECTIVE]) and not CaseAssignment.objects.filter(
             case=case, user=request.user, role_in_case="detective"
         ).exists():
@@ -100,6 +106,11 @@ class EvidenceListCreateView(APIView):
 
     def get(self, request, case_id):
         case = get_object_or_404(Case, id=case_id)
+        if not can_user_access_case(request.user, case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if user_has_role(request.user, [ROLE_DETECTIVE]) and not CaseAssignment.objects.filter(
             case=case, user=request.user, role_in_case="detective"
         ).exists():
@@ -131,10 +142,34 @@ class EvidenceDetailView(APIView):
 
     def get(self, request, id):
         evidence = get_object_or_404(Evidence, id=id)
+        if not can_user_access_case(request.user, evidence.case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if user_has_role(request.user, [ROLE_DETECTIVE]) and not CaseAssignment.objects.filter(
+            case=evidence.case, user=request.user, role_in_case="detective"
+        ).exists():
+            return Response(
+                {"error": {"code": "forbidden", "message": "Detective not assigned to case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         return Response(EvidenceSerializer(evidence).data, status=status.HTTP_200_OK)
 
     def patch(self, request, id):
         evidence = get_object_or_404(Evidence, id=id)
+        if not can_user_access_case(request.user, evidence.case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if user_has_role(request.user, [ROLE_DETECTIVE]) and not CaseAssignment.objects.filter(
+            case=evidence.case, user=request.user, role_in_case="detective"
+        ).exists():
+            return Response(
+                {"error": {"code": "forbidden", "message": "Detective not assigned to case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         data = request.data
         if evidence.evidence_type == EvidenceType.MEDICAL:
             if "forensic_result" in data or "status" in data:
@@ -198,6 +233,11 @@ class EvidenceDetailView(APIView):
 
     def delete(self, request, id):
         evidence = get_object_or_404(Evidence, id=id)
+        if not can_user_access_case(request.user, evidence.case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if not user_has_role(request.user, [ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_SYSTEM_ADMIN]):
             return Response(
                 {"error": {"code": "forbidden", "message": "Not authorized", "details": {}}},
