@@ -492,6 +492,26 @@ a {
   margin: 0;
 }
 
+.board-panel-grid {
+  grid-template-columns: minmax(290px, 360px) 1fr;
+  align-items: start;
+}
+
+.board-canvas-wrapper {
+  width: 100%;
+  height: 520px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #f6ebd9, #fef8ec);
+}
+
+.board-node p {
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  color: #4a5369;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -509,5 +529,9 @@ a {
     order: 3;
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .board-panel-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -127,3 +127,29 @@ export type Evidence = {
     data: Record<string, string>;
   };
 };
+
+export type BoardItem = {
+  id: number;
+  item_type: "EVIDENCE_REF" | "NOTE";
+  evidence: number | null;
+  title: string;
+  text: string;
+  x: number;
+  y: number;
+  updated_at: string;
+};
+
+export type BoardConnection = {
+  id: number;
+  from_item: number;
+  to_item: number;
+  created_at: string;
+};
+
+export type DetectiveBoard = {
+  id: number;
+  case: number;
+  items: BoardItem[];
+  connections: BoardConnection[];
+  updated_at: string;
+};
