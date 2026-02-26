@@ -48,12 +48,23 @@ class Case(models.Model):
 
 
 class CaseComplainant(models.Model):
+    class VerificationStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
     complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, null=True, blank=True, related_name="complainants")
     case = models.ForeignKey(Case, on_delete=models.CASCADE, null=True, blank=True, related_name="complainants")
     full_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=20)
     national_id = models.CharField(max_length=20)
     is_verified = models.BooleanField(default=False)
+    verification_status = models.CharField(
+        max_length=20,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.PENDING,
+    )
+    review_message = models.TextField(blank=True)
 
     def __str__(self):
         return self.full_name

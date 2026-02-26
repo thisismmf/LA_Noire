@@ -15,8 +15,8 @@ from .constants import ComplaintStatus, CaseStatus, CrimeSceneStatus, CaseSource
 class CaseComplainantSerializer(serializers.ModelSerializer):
     class Meta:
         model = CaseComplainant
-        fields = ("id", "full_name", "phone", "national_id", "is_verified")
-        read_only_fields = ("id", "is_verified")
+        fields = ("id", "full_name", "phone", "national_id", "is_verified", "verification_status", "review_message")
+        read_only_fields = ("id", "is_verified", "verification_status", "review_message")
 
 
 class ComplaintSerializer(serializers.ModelSerializer):
@@ -56,13 +56,27 @@ class ComplaintResubmitSerializer(serializers.Serializer):
 
 
 class CadetReviewSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=["approve", "return"]) 
+    action = serializers.ChoiceField(choices=["approve", "return"])
     message = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        action = attrs.get("action")
+        message = (attrs.get("message") or "").strip()
+        if action == "return" and not message:
+            raise serializers.ValidationError("message is required when returning to complainant")
+        return attrs
 
 
 class OfficerReviewSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=["approve", "return_to_cadet"])
     message = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        action = attrs.get("action")
+        message = (attrs.get("message") or "").strip()
+        if action == "return_to_cadet" and not message:
+            raise serializers.ValidationError("message is required when returning to cadet")
+        return attrs
 
 
 class CrimeSceneWitnessSerializer(serializers.ModelSerializer):
@@ -111,8 +125,25 @@ class AddComplainantSerializer(serializers.ModelSerializer):
         fields = ("full_name", "phone", "national_id")
 
 
+class ComplainantReviewSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["approve", "reject"])
+    message = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        action = attrs.get("action")
+        message = (attrs.get("message") or "").strip()
+        if action == "reject" and not message:
+            raise serializers.ValidationError("message is required when rejecting complainant")
+        return attrs
+
+
 class CaseAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = CaseAssignment
         fields = ("id", "case", "user", "role_in_case", "assigned_at")
         read_only_fields = ("id", "assigned_at")
+
+
+class CaseAssignmentUpsertSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    role_in_case = serializers.ChoiceField(choices=[choice[0] for choice in CaseAssignment._meta.get_field("role_in_case").choices])

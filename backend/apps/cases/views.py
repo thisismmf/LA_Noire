@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -19,6 +20,7 @@ from apps.rbac.constants import (
     ROLE_BASE_USER,
 )
 from apps.rbac.utils import user_has_role, get_role_by_slug
+from apps.accounts.models import User
 from .models import Complaint, Case, CaseComplainant, CaseReview, CrimeSceneReport, CaseAssignment
 from .serializers import (
     ComplaintSerializer,
@@ -29,9 +31,21 @@ from .serializers import (
     CrimeSceneApproveSerializer,
     CaseSerializer,
     AddComplainantSerializer,
+    ComplainantReviewSerializer,
+    CaseComplainantSerializer,
+    CaseAssignmentSerializer,
+    CaseAssignmentUpsertSerializer,
 )
-from .constants import ComplaintStatus, CaseStatus, CrimeSceneStatus, CaseSourceType
+from .constants import ComplaintStatus, CaseStatus, CrimeSceneStatus, CaseSourceType, CaseAssignmentRole
 from .policies import get_required_approver_role_slug, POLICE_ROLES
+
+
+def _case_queryset_for_user(user):
+    if user_has_role(user, [ROLE_SYSTEM_ADMIN]):
+        return Case.objects.all()
+    return Case.objects.filter(
+        Q(assignments__user=user) | Q(complaint__created_by=user) | Q(created_by=user)
+    ).distinct()
 
 
 class ComplaintCreateView(generics.CreateAPIView):
@@ -133,6 +147,35 @@ class OfficerReviewView(APIView):
             complaint.save()
             CaseReview.objects.create(complaint=complaint, reviewer=request.user, decision=action, message=message)
             return Response(ComplaintSerializer(complaint).data, status=status.HTTP_200_OK)
+        if CaseComplainant.objects.filter(
+            complaint=complaint,
+            verification_status=CaseComplainant.VerificationStatus.PENDING,
+        ).exists():
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_state",
+                        "message": "All complainants must be reviewed by cadet before approval",
+                        "details": {},
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        approved_complainants = CaseComplainant.objects.filter(
+            complaint=complaint,
+            verification_status=CaseComplainant.VerificationStatus.APPROVED,
+        )
+        if not approved_complainants.exists():
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_state",
+                        "message": "At least one complainant must be approved before case formation",
+                        "details": {},
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         complaint.status = ComplaintStatus.APPROVED
         complaint.last_message = ""
         complaint.save()
@@ -147,7 +190,7 @@ class OfficerReviewView(APIView):
             created_by=request.user,
             complaint=complaint,
         )
-        CaseComplainant.objects.filter(complaint=complaint).update(case=case, is_verified=True)
+        approved_complainants.update(case=case, is_verified=True)
         CaseReview.objects.create(complaint=complaint, reviewer=request.user, decision=action, message=message)
         return Response(ComplaintSerializer(complaint).data, status=status.HTTP_200_OK)
 
@@ -156,7 +199,7 @@ class CrimeSceneCreateView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_POLICE_OFFICER, ROLE_PATROL_OFFICER, ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF]
 
-    @extend_schema(request=CrimeSceneReportSerializer, responses={201: CaseSerializer})
+    @extend_schema(request=CrimeSceneReportSerializer, responses={201: None})
     def post(self, request):
         serializer = CrimeSceneReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -182,16 +225,22 @@ class CrimeSceneCreateView(APIView):
         )
         for witness in serializer.validated_data["witnesses"]:
             report.witnesses.create(**witness)
-        return Response(CaseSerializer(case).data, status=status.HTTP_201_CREATED)
+        return Response(
+            {"case": CaseSerializer(case).data, "crime_scene_report_id": report.id},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class CrimeSceneApproveView(APIView):
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_POLICE_OFFICER, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF]
 
-    @extend_schema(request=CrimeSceneApproveSerializer, responses={200: CaseSerializer})
-    def post(self, request, id):
-        report = get_object_or_404(CrimeSceneReport, id=id)
+    @extend_schema(request=CrimeSceneApproveSerializer, responses={200: None})
+    def post(self, request, id=None, case_id=None):
+        if case_id is not None:
+            report = get_object_or_404(CrimeSceneReport, case_id=case_id)
+        else:
+            report = get_object_or_404(CrimeSceneReport, id=id)
         if report.status != CrimeSceneStatus.PENDING_APPROVAL:
             return Response(
                 {"error": {"code": "invalid_state", "message": "Report not pending approval", "details": {}}},
@@ -217,33 +266,24 @@ class CrimeSceneApproveView(APIView):
             report.case.status = CaseStatus.VOIDED
             report.case.save()
         report.save()
-        return Response(CaseSerializer(report.case).data, status=status.HTTP_200_OK)
+        return Response(
+            {"case": CaseSerializer(report.case).data, "crime_scene_report_id": report.id},
+            status=status.HTTP_200_OK,
+        )
 
 
 class CaseListView(generics.ListAPIView):
     serializer_class = CaseSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        if user_has_role(user, [ROLE_SYSTEM_ADMIN]):
-            return Case.objects.all()
-        assigned_case_ids = CaseAssignment.objects.filter(user=user).values_list("case_id", flat=True)
-        complaint_case_ids = Case.objects.filter(complaint__created_by=user).values_list("id", flat=True)
-        created_case_ids = Case.objects.filter(created_by=user).values_list("id", flat=True)
-        return Case.objects.filter(id__in=list(assigned_case_ids) + list(complaint_case_ids) + list(created_case_ids))
+        return _case_queryset_for_user(self.request.user)
 
 
 class CaseDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = CaseSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        if user_has_role(user, [ROLE_SYSTEM_ADMIN]):
-            return Case.objects.all()
-        assigned_case_ids = CaseAssignment.objects.filter(user=user).values_list("case_id", flat=True)
-        complaint_case_ids = Case.objects.filter(complaint__created_by=user).values_list("id", flat=True)
-        created_case_ids = Case.objects.filter(created_by=user).values_list("id", flat=True)
-        return Case.objects.filter(id__in=list(assigned_case_ids) + list(complaint_case_ids) + list(created_case_ids))
+        return _case_queryset_for_user(self.request.user)
 
     def update(self, request, *args, **kwargs):
         if not user_has_role(request.user, list(POLICE_ROLES)):
@@ -276,5 +316,86 @@ class AddComplainantView(APIView):
         case = get_object_or_404(Case, id=id)
         serializer = AddComplainantSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        CaseComplainant.objects.create(case=case, **serializer.validated_data, is_verified=True)
+        CaseComplainant.objects.create(
+            case=case,
+            **serializer.validated_data,
+            is_verified=False,
+            verification_status=CaseComplainant.VerificationStatus.PENDING,
+            review_message="",
+        )
         return Response(CaseSerializer(case).data, status=status.HTTP_200_OK)
+
+
+class ComplainantReviewView(APIView):
+    permission_classes = [RoleRequiredPermission]
+    required_roles = [ROLE_CADET]
+
+    @extend_schema(request=ComplainantReviewSerializer, responses={200: CaseComplainantSerializer})
+    def post(self, request, id):
+        complainant = get_object_or_404(CaseComplainant, id=id)
+        serializer = ComplainantReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        action = serializer.validated_data["action"]
+        message = serializer.validated_data.get("message", "").strip()
+        if action == "approve":
+            complainant.verification_status = CaseComplainant.VerificationStatus.APPROVED
+            complainant.is_verified = True
+            complainant.review_message = ""
+        else:
+            complainant.verification_status = CaseComplainant.VerificationStatus.REJECTED
+            complainant.is_verified = False
+            complainant.review_message = message
+        complainant.save(update_fields=["verification_status", "is_verified", "review_message"])
+        return Response(CaseComplainantSerializer(complainant).data, status=status.HTTP_200_OK)
+
+
+class CaseAssignmentListCreateView(APIView):
+    permission_classes = [RoleRequiredPermission]
+    required_roles = [ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
+
+    def get(self, request, case_id):
+        case = get_object_or_404(Case, id=case_id)
+        assignments = CaseAssignment.objects.filter(case=case).select_related("user")
+        return Response(CaseAssignmentSerializer(assignments, many=True).data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=CaseAssignmentUpsertSerializer, responses={201: CaseAssignmentSerializer})
+    def post(self, request, case_id):
+        case = get_object_or_404(Case, id=case_id)
+        serializer = CaseAssignmentUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = get_object_or_404(User, id=serializer.validated_data["user_id"])
+        role_in_case = serializer.validated_data["role_in_case"]
+        required_role_map = {
+            CaseAssignmentRole.DETECTIVE: [ROLE_DETECTIVE],
+            CaseAssignmentRole.OFFICER: [ROLE_POLICE_OFFICER, ROLE_PATROL_OFFICER],
+            CaseAssignmentRole.SERGEANT: [ROLE_SERGEANT],
+        }
+        if not user_has_role(user, required_role_map.get(role_in_case, [])):
+            return Response(
+                {
+                    "error": {
+                        "code": "validation_error",
+                        "message": "User does not have required system role for this assignment",
+                        "details": {},
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        assignment, created = CaseAssignment.objects.get_or_create(
+            case=case,
+            user=user,
+            role_in_case=role_in_case,
+        )
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(CaseAssignmentSerializer(assignment).data, status=status_code)
+
+
+class CaseAssignmentDeleteView(APIView):
+    permission_classes = [RoleRequiredPermission]
+    required_roles = [ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
+
+    def delete(self, request, case_id, id):
+        case = get_object_or_404(Case, id=case_id)
+        assignment = get_object_or_404(CaseAssignment, id=id, case=case)
+        assignment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
