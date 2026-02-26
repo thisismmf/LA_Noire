@@ -196,3 +196,11 @@ export type TrialDecision = {
   punishment_description: string;
   decided_at: string;
 };
+
+export type Role = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  is_system: boolean;
+};
