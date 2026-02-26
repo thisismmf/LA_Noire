@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny
 from apps.rbac.permissions import RoleRequiredPermission
 from apps.rbac.constants import ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_SYSTEM_ADMIN, ROLE_POLICE_CHIEF, ROLE_CAPTAIN, ROLE_POLICE_OFFICER
 from .models import Person, SuspectCandidate, WantedRecord
+from apps.notifications.models import Notification
 from .serializers import (
     SuspectProposalSerializer,
     SuspectCandidateSerializer,
@@ -67,6 +68,17 @@ class SergeantDecisionView(APIView):
         candidate.sergeant_message = message
         candidate.decided_at = timezone.now()
         candidate.save()
+        if candidate.proposed_by_detective_id:
+            Notification.objects.create(
+                user=candidate.proposed_by_detective,
+                case=candidate.case,
+                type="suspect_decision",
+                payload={
+                    "candidate_id": candidate.id,
+                    "status": candidate.status,
+                    "message": message,
+                },
+            )
         return Response(SuspectCandidateSerializer(candidate).data, status=status.HTTP_200_OK)
 
 

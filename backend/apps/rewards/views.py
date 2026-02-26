@@ -4,7 +4,18 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.rbac.permissions import RoleRequiredPermission
-from apps.rbac.constants import ROLE_BASE_USER, ROLE_POLICE_OFFICER, ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_SYSTEM_ADMIN
+from apps.rbac.constants import (
+    ROLE_BASE_USER,
+    ROLE_CADET,
+    ROLE_POLICE_OFFICER,
+    ROLE_PATROL_OFFICER,
+    ROLE_DETECTIVE,
+    ROLE_SERGEANT,
+    ROLE_CAPTAIN,
+    ROLE_POLICE_CHIEF,
+    ROLE_CORONER,
+    ROLE_SYSTEM_ADMIN,
+)
 from apps.notifications.models import Notification
 from apps.accounts.models import User
 from apps.suspects.utils import compute_most_wanted
@@ -86,7 +97,17 @@ class DetectiveReviewView(APIView):
 
 class RewardLookupView(APIView):
     permission_classes = [RoleRequiredPermission]
-    required_roles = [ROLE_POLICE_OFFICER, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_SYSTEM_ADMIN]
+    required_roles = [
+        ROLE_CADET,
+        ROLE_POLICE_OFFICER,
+        ROLE_PATROL_OFFICER,
+        ROLE_DETECTIVE,
+        ROLE_SERGEANT,
+        ROLE_CAPTAIN,
+        ROLE_POLICE_CHIEF,
+        ROLE_CORONER,
+        ROLE_SYSTEM_ADMIN,
+    ]
 
     def get(self, request):
         serializer = RewardLookupSerializer(data=request.query_params)
