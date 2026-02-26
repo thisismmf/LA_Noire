@@ -22,6 +22,8 @@ class PaymentCreateView(APIView):
 
     @extend_schema(request=PaymentCreateSerializer, responses={201: PaymentCreateResponseSerializer})
     def post(self, request):
+        """Create a bail or fine payment request and return the gateway redirect payload."""
+
         serializer = PaymentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         case = get_object_or_404(Case, id=serializer.validated_data["case_id"])
@@ -75,6 +77,8 @@ class PaymentReturnView(APIView):
 
     @extend_schema(request=None, responses={200: OpenApiTypes.STR})
     def get(self, request):
+        """Render the payment gateway return page that shows the current payment status to the user."""
+
         payment_id = request.GET.get("payment_id")
         status_param = request.GET.get("status", "pending")
         payment = Payment.objects.filter(id=payment_id).first() if payment_id else None
@@ -86,6 +90,8 @@ class PaymentCallbackView(APIView):
 
     @extend_schema(request=PaymentCallbackSerializer, responses={200: PaymentSerializer})
     def post(self, request):
+        """Process the gateway callback, verify the signature, and persist the final payment status."""
+
         serializer = PaymentCallbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payment = get_object_or_404(Payment, id=serializer.validated_data["payment_id"])

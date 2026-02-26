@@ -26,6 +26,8 @@ class CaseReportView(APIView):
 
     @extend_schema(request=None, responses={200: CaseReportResponseSerializer})
     def get(self, request, case_id):
+        """Return the complete judge-facing case report with evidence, assignments, reviews, and interrogation history."""
+
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
             return Response(
@@ -94,6 +96,8 @@ class TrialDecisionView(APIView):
 
     @extend_schema(request=TrialDecisionSerializer, responses={200: TrialSerializer})
     def post(self, request, case_id):
+        """Record the judge's final verdict and punishment details for a case."""
+
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
             return Response(

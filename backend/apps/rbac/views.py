@@ -11,6 +11,8 @@ from apps.accounts.models import User
 
 
 class RoleListCreateView(generics.ListCreateAPIView):
+    """List custom and system roles or create a new role without changing source code."""
+
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
     permission_classes = [RoleRequiredPermission]
@@ -18,6 +20,8 @@ class RoleListCreateView(generics.ListCreateAPIView):
 
 
 class RoleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Retrieve, update, or delete a role while protecting immutable built-in system roles."""
+
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
     permission_classes = [RoleRequiredPermission]
@@ -60,6 +64,8 @@ class AssignRoleView(APIView):
 
     @extend_schema(request=AssignRoleSerializer, responses={200: RoleSerializer})
     def post(self, request, user_id):
+        """Assign an existing role to a user by role ID or role slug."""
+
         serializer = AssignRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         role = serializer.get_role()
@@ -79,6 +85,8 @@ class RemoveRoleView(APIView):
 
     @extend_schema(request=AssignRoleSerializer, responses={204: None})
     def post(self, request, user_id):
+        """Remove an assigned role from a user by role ID or role slug."""
+
         serializer = AssignRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         role = serializer.get_role()

@@ -42,6 +42,8 @@ def _compute_tip_reward_amount(tip):
 
 
 class TipCreateView(generics.ListCreateAPIView):
+    """List tips submitted by the current base user and allow them to submit a new tip with optional attachments."""
+
     serializer_class = TipSerializer
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_BASE_USER]
@@ -64,6 +66,8 @@ class TipReviewQueueView(APIView):
 
     @extend_schema(request=None, responses={200: TipSerializer(many=True)})
     def get(self, request):
+        """Return the appropriate tip review queue for police officers, detectives, or system administrators."""
+
         role_slugs = set(request.user.user_roles.values_list("role__slug", flat=True))
         if ROLE_SYSTEM_ADMIN in role_slugs:
             queryset = Tip.objects.all()
@@ -83,6 +87,8 @@ class OfficerReviewView(APIView):
 
     @extend_schema(request=OfficerReviewSerializer, responses={200: TipSerializer})
     def post(self, request, id):
+        """Perform the first-stage police review for a submitted tip."""
+
         tip = get_object_or_404(Tip, id=id)
         serializer = OfficerReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -103,6 +109,8 @@ class DetectiveReviewView(APIView):
 
     @extend_schema(request=DetectiveReviewSerializer, responses={200: TipSerializer})
     def post(self, request, id):
+        """Perform the detective review, issue a reward code on acceptance, and notify the submitting user."""
+
         tip = get_object_or_404(Tip, id=id)
         if tip.case:
             from apps.cases.models import CaseAssignment
@@ -153,6 +161,8 @@ class RewardLookupView(APIView):
 
     @extend_schema(request=None, responses={200: RewardLookupResponseSerializer})
     def get(self, request):
+        """Look up an issued reward by national ID and reward code for in-person payout verification."""
+
         serializer = RewardLookupSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         national_id = serializer.validated_data["national_id"]

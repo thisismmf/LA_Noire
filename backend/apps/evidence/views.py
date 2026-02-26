@@ -49,6 +49,8 @@ class EvidenceListCreateView(APIView):
 
     @extend_schema(request=EvidenceCreateSerializer, responses={201: EvidenceSerializer})
     def post(self, request, case_id):
+        """Register new evidence for an accessible case, including witness, medical, vehicle, and document variants."""
+
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
             return Response(
@@ -106,6 +108,8 @@ class EvidenceListCreateView(APIView):
 
     @extend_schema(request=None, responses={200: EvidenceSerializer(many=True)})
     def get(self, request, case_id):
+        """List evidence for a case and optionally filter by evidence type."""
+
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
             return Response(
@@ -143,6 +147,8 @@ class EvidenceDetailView(APIView):
 
     @extend_schema(request=None, responses={200: EvidenceSerializer})
     def get(self, request, id):
+        """Retrieve a single evidence record if the requester can access the linked case."""
+
         evidence = get_object_or_404(Evidence, id=id)
         if not can_user_access_case(request.user, evidence.case):
             return Response(
@@ -160,6 +166,8 @@ class EvidenceDetailView(APIView):
 
     @extend_schema(request=EvidenceSerializer, responses={200: EvidenceSerializer})
     def patch(self, request, id):
+        """Update an evidence record while enforcing subtype-specific validation and role restrictions."""
+
         evidence = get_object_or_404(Evidence, id=id)
         if not can_user_access_case(request.user, evidence.case):
             return Response(
@@ -236,6 +244,8 @@ class EvidenceDetailView(APIView):
 
     @extend_schema(request=None, responses={204: None})
     def delete(self, request, id):
+        """Delete an evidence record if the requester has elevated case-management privileges."""
+
         evidence = get_object_or_404(Evidence, id=id)
         if not can_user_access_case(request.user, evidence.case):
             return Response(

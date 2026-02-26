@@ -52,6 +52,8 @@ def _case_queryset_for_user(user):
 
 
 class ComplaintCreateView(generics.CreateAPIView):
+    """Submit a new complaint that enters the cadet and police review workflow for case formation."""
+
     serializer_class = ComplaintSerializer
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_COMPLAINANT, ROLE_BASE_USER]
@@ -66,6 +68,8 @@ class ComplaintCreateView(generics.CreateAPIView):
 
 
 class ComplaintDetailView(generics.RetrieveAPIView):
+    """Retrieve a complaint visible to the current user or reviewing police staff."""
+
     queryset = Complaint.objects.all()
     serializer_class = ComplaintSerializer
 
@@ -77,6 +81,8 @@ class ComplaintDetailView(generics.RetrieveAPIView):
 
 
 class ComplaintQueueView(generics.ListAPIView):
+    """List complaint review queues according to the requesting user's role and optional filters."""
+
     serializer_class = ComplaintSerializer
     permission_classes = [RoleRequiredPermission]
     required_roles = [ROLE_CADET, ROLE_POLICE_OFFICER, ROLE_SYSTEM_ADMIN]
@@ -96,6 +102,8 @@ class ComplaintQueueView(generics.ListAPIView):
         responses={200: ComplaintSerializer(many=True)},
     )
     def get(self, request, *args, **kwargs):
+        """Return the complaint queue for cadets, officers, or system administrators."""
+
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -127,6 +135,8 @@ class ComplaintResubmitView(APIView):
 
     @extend_schema(request=ComplaintResubmitSerializer, responses={200: ComplaintSerializer})
     def post(self, request, id):
+        """Resubmit a returned complaint and invalidate it after the third failed submission."""
+
         complaint = get_object_or_404(Complaint, id=id, created_by=request.user)
         if complaint.status != ComplaintStatus.RETURNED_TO_COMPLAINANT:
             return Response(
@@ -154,6 +164,8 @@ class CadetReviewView(APIView):
 
     @extend_schema(request=CadetReviewSerializer, responses={200: ComplaintSerializer})
     def post(self, request, id):
+        """Approve a complaint for officer review or return it to the complainant with a correction message."""
+
         complaint = get_object_or_404(Complaint, id=id)
         if complaint.status not in [ComplaintStatus.PENDING_CADET_REVIEW, ComplaintStatus.RETURNED_TO_CADET]:
             return Response(
@@ -180,6 +192,8 @@ class OfficerReviewView(APIView):
 
     @extend_schema(request=OfficerReviewSerializer, responses={200: ComplaintSerializer})
     def post(self, request, id):
+        """Approve a complaint into a case or return it to the cadet for re-evaluation."""
+
         complaint = get_object_or_404(Complaint, id=id)
         if complaint.status != ComplaintStatus.PENDING_OFFICER_REVIEW:
             return Response(
@@ -250,6 +264,8 @@ class CrimeSceneCreateView(APIView):
 
     @extend_schema(request=CrimeSceneReportSerializer, responses={201: CrimeSceneActionResponseSerializer})
     def post(self, request):
+        """Create a new case directly from a field crime-scene report and its witness records."""
+
         serializer = CrimeSceneReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         required_role_slug = get_required_approver_role_slug(request.user)
@@ -290,6 +306,8 @@ class CrimeSceneApproveView(APIView):
         operation_id="cases_crime_scene_approve_by_case",
     )
     def post(self, request, case_id):
+        """Approve or reject a pending crime-scene case according to the required superior rank."""
+
         report = get_object_or_404(CrimeSceneReport, case_id=case_id)
         if report.status != CrimeSceneStatus.PENDING_APPROVAL:
             return Response(
@@ -323,6 +341,8 @@ class CrimeSceneApproveView(APIView):
 
 
 class CaseListView(generics.ListAPIView):
+    """List cases accessible to the current user through assignments, ownership, or administrator access."""
+
     serializer_class = CaseSerializer
 
     def get_queryset(self):
@@ -330,6 +350,8 @@ class CaseListView(generics.ListAPIView):
 
 
 class CaseDetailView(generics.RetrieveUpdateAPIView):
+    """Retrieve a case or update allowed fields, including validated status transitions for police roles."""
+
     serializer_class = CaseSerializer
 
     def get_queryset(self):
@@ -363,6 +385,8 @@ class AddComplainantView(APIView):
 
     @extend_schema(request=AddComplainantSerializer, responses={200: CaseSerializer})
     def post(self, request, id):
+        """Attach a new complainant record to an existing case for cadet verification."""
+
         case = get_object_or_404(Case, id=id)
         serializer = AddComplainantSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -382,6 +406,8 @@ class ComplainantReviewView(APIView):
 
     @extend_schema(request=ComplainantReviewSerializer, responses={200: CaseComplainantSerializer})
     def post(self, request, id):
+        """Approve or reject an individual complainant attached to a case or complaint."""
+
         complainant = get_object_or_404(CaseComplainant, id=id)
         serializer = ComplainantReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -405,12 +431,16 @@ class CaseAssignmentListCreateView(APIView):
 
     @extend_schema(request=None, responses={200: CaseAssignmentSerializer(many=True)})
     def get(self, request, case_id):
+        """List current case assignments so managers can review the active investigation team."""
+
         case = get_object_or_404(Case, id=case_id)
         assignments = CaseAssignment.objects.filter(case=case).select_related("user")
         return Response(CaseAssignmentSerializer(assignments, many=True).data, status=status.HTTP_200_OK)
 
     @extend_schema(request=CaseAssignmentUpsertSerializer, responses={200: CaseAssignmentSerializer, 201: CaseAssignmentSerializer})
     def post(self, request, case_id):
+        """Assign a user to a case role when their system role satisfies the assignment rules."""
+
         case = get_object_or_404(Case, id=case_id)
         serializer = CaseAssignmentUpsertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -447,6 +477,8 @@ class CaseAssignmentDeleteView(APIView):
 
     @extend_schema(request=None, responses={204: None})
     def delete(self, request, case_id, id):
+        """Remove a specific assignment from a case."""
+
         case = get_object_or_404(Case, id=case_id)
         assignment = get_object_or_404(CaseAssignment, id=id, case=case)
         assignment.delete()

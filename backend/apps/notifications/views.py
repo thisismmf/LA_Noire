@@ -8,6 +8,8 @@ from .serializers import NotificationSerializer
 
 
 class NotificationListView(generics.ListAPIView):
+    """List notifications for the authenticated user in reverse chronological order."""
+
     serializer_class = NotificationSerializer
 
     def get_queryset(self):
@@ -19,6 +21,8 @@ class NotificationListView(generics.ListAPIView):
 class NotificationReadView(APIView):
     @extend_schema(request=None, responses={200: NotificationSerializer, 404: None})
     def post(self, request, id):
+        """Mark a user-owned notification as read and return the updated notification."""
+
         notification = Notification.objects.filter(id=id, user=request.user).first()
         if not notification:
             return Response(status=status.HTTP_404_NOT_FOUND)

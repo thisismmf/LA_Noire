@@ -28,6 +28,8 @@ class SuspectProposalView(APIView):
 
     @extend_schema(request=SuspectProposalSerializer, responses={201: SuspectCandidateSerializer(many=True)})
     def post(self, request, case_id):
+        """Submit one or more suspect candidates for a case together with the detective rationale."""
+
         case = get_object_or_404(Case, id=case_id)
         from apps.cases.models import CaseAssignment
         if not CaseAssignment.objects.filter(case=case, user=request.user, role_in_case="detective").exists():
@@ -60,6 +62,8 @@ class SergeantDecisionView(APIView):
 
     @extend_schema(request=SergeantDecisionSerializer, responses={200: SuspectCandidateSerializer})
     def post(self, request, case_id, suspect_id):
+        """Approve or reject a suspect candidate and notify the proposing detective."""
+
         candidate = get_object_or_404(SuspectCandidate, id=suspect_id, case_id=case_id)
         if not can_user_access_case(request.user, candidate.case):
             return Response(
@@ -97,6 +101,8 @@ class MostWantedPublicView(APIView):
 
     @extend_schema(request=None, responses={200: MostWantedSerializer(many=True)})
     def get(self, request):
+        """Return the public most-wanted ranking visible to all users."""
+
         results = compute_most_wanted()
         serializer = MostWantedSerializer(results, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -108,6 +114,8 @@ class MostWantedPoliceView(APIView):
 
     @extend_schema(request=None, responses={200: MostWantedSerializer(many=True)})
     def get(self, request):
+        """Return the police-facing most-wanted ranking for authorized staff."""
+
         results = compute_most_wanted()
         serializer = MostWantedSerializer(results, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -119,6 +127,8 @@ class SuspectStatusUpdateView(APIView):
 
     @extend_schema(request=SuspectStatusUpdateSerializer, responses={200: PersonSerializer})
     def post(self, request, person_id):
+        """Update a suspect's status within a case, such as wanted, arrested, or cleared."""
+
         person = get_object_or_404(Person, id=person_id)
         serializer = SuspectStatusUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

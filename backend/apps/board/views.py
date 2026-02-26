@@ -20,6 +20,8 @@ class BoardDetailView(APIView):
 
     @extend_schema(request=None, responses={200: DetectiveBoardSerializer})
     def get(self, request, case_id):
+        """Return the detective board for a case, including all notes, evidence references, and connections."""
+
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
             return Response(
@@ -36,6 +38,8 @@ class BoardItemCreateView(APIView):
 
     @extend_schema(request=BoardItemSerializer, responses={201: BoardItemSerializer})
     def post(self, request, case_id):
+        """Create a new board item such as a note or evidence reference on a detective board."""
+
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
             return Response(
@@ -66,6 +70,8 @@ class BoardItemDetailView(APIView):
 
     @extend_schema(request=BoardItemSerializer, responses={200: BoardItemSerializer})
     def patch(self, request, id):
+        """Update a board item's content, position, or linked evidence reference."""
+
         item = get_object_or_404(BoardItem, id=id)
         if not can_user_access_case(request.user, item.board.case):
             return Response(
@@ -92,6 +98,8 @@ class BoardItemDetailView(APIView):
 
     @extend_schema(request=None, responses={204: None})
     def delete(self, request, id):
+        """Remove a board item from the detective board."""
+
         item = get_object_or_404(BoardItem, id=id)
         if not can_user_access_case(request.user, item.board.case):
             return Response(
@@ -108,6 +116,8 @@ class BoardConnectionCreateView(APIView):
 
     @extend_schema(request=BoardConnectionSerializer, responses={201: BoardConnectionSerializer})
     def post(self, request):
+        """Create a red-line connection between two board items on the same detective board."""
+
         serializer = BoardConnectionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         from_item = serializer.validated_data["from_item"]
@@ -132,6 +142,8 @@ class BoardConnectionDeleteView(APIView):
 
     @extend_schema(request=None, responses={204: None})
     def delete(self, request, id):
+        """Remove a red-line connection between detective board items."""
+
         connection = get_object_or_404(BoardConnection, id=id)
         if not can_user_access_case(request.user, connection.board.case):
             return Response(

@@ -25,6 +25,8 @@ class InterrogationCreateView(APIView):
 
     @extend_schema(request=InterrogationCreateSerializer, responses={201: InterrogationSerializer})
     def post(self, request, case_id):
+        """Create an interrogation record for a suspect in a case assigned to the requesting detective."""
+
         case = get_object_or_404(Case, id=case_id)
         from apps.cases.models import CaseAssignment
         if not CaseAssignment.objects.filter(case=case, user=request.user, role_in_case="detective").exists():
@@ -50,6 +52,8 @@ class DetectiveScoreView(APIView):
 
     @extend_schema(request=ScoreSerializer, responses={200: InterrogationSerializer})
     def patch(self, request, id):
+        """Record or revise the detective guilt score for an interrogation awaiting detective input."""
+
         interrogation = get_object_or_404(Interrogation, id=id)
         if not is_user_assigned_to_case(request.user, interrogation.case, role_in_case="detective"):
             return Response(
@@ -76,6 +80,8 @@ class SergeantScoreView(APIView):
 
     @extend_schema(request=ScoreSerializer, responses={200: InterrogationSerializer})
     def patch(self, request, id):
+        """Record the sergeant guilt score and advance the interrogation to captain review."""
+
         interrogation = get_object_or_404(Interrogation, id=id)
         if not is_user_assigned_to_case(request.user, interrogation.case, role_in_case="sergeant"):
             return Response(
@@ -101,6 +107,8 @@ class CaptainDecisionView(APIView):
 
     @extend_schema(request=CaptainDecisionSerializer, responses={200: InterrogationSerializer})
     def post(self, request, id):
+        """Record the captain decision and escalate critical cases to chief approval when required."""
+
         interrogation = get_object_or_404(Interrogation, id=id)
         if not can_user_access_case(request.user, interrogation.case):
             return Response(
@@ -130,6 +138,8 @@ class ChiefDecisionView(APIView):
 
     @extend_schema(request=ChiefDecisionSerializer, responses={200: InterrogationSerializer})
     def post(self, request, id):
+        """Record the chief of police decision for a critical-crime interrogation."""
+
         interrogation = get_object_or_404(Interrogation, id=id)
         if not can_user_access_case(request.user, interrogation.case):
             return Response(

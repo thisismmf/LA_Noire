@@ -65,8 +65,8 @@ class StatsDocsTests(APITestCase):
             response_examples["SuccessResponse"]["value"],
             {
                 "total_solved_cases": 1,
-                "total_employees": 1,
-                "active_cases": 1,
+                "total_employees": 15,
+                "active_cases": 4,
             },
         )
         self.assertNotEqual(response_examples["SuccessResponse"]["value"], {"success": True})
@@ -78,3 +78,49 @@ class StatsDocsTests(APITestCase):
 
         self.assertIn("tokens", response_examples["SuccessResponse"]["value"])
         self.assertIn("user", response_examples["SuccessResponse"]["value"])
+
+    def test_all_operations_have_descriptions_and_json_examples(self):
+        schema = SchemaGenerator().get_schema(request=None, public=True)
+
+        for path, operations in schema["paths"].items():
+            for method, operation in operations.items():
+                self.assertTrue(operation.get("description"), f"{method.upper()} {path} is missing a description")
+
+                request_body = operation.get("requestBody", {})
+                request_content = request_body.get("content", {})
+                if "application/json" in request_content:
+                    self.assertTrue(
+                        request_content["application/json"].get("examples"),
+                        f"{method.upper()} {path} is missing request examples",
+                    )
+
+                for status_code, response in operation.get("responses", {}).items():
+                    if not str(status_code).startswith("2"):
+                        continue
+                    content = response.get("content", {})
+                    if "application/json" not in content:
+                        continue
+                    examples = content["application/json"].get("examples")
+                    self.assertTrue(examples, f"{method.upper()} {path} is missing success response examples")
+                    for example in examples.values():
+                        self.assertNotEqual(example["value"], {"success": True})
+                        self.assertNotEqual(example["value"], {"example": "value"})
+                    break
+
+    def test_complex_workflow_examples_are_domain_specific(self):
+        schema = SchemaGenerator().get_schema(request=None, public=True)
+
+        complaint_post = schema["paths"]["/api/v1/cases/complaints/"]["post"]
+        complaint_example = complaint_post["requestBody"]["content"]["application/json"]["examples"]["RequestExample"]["value"]
+        self.assertIn("complainants", complaint_example)
+        self.assertEqual(complaint_example["complainants"][0]["full_name"], "Mary Hudson")
+
+        evidence_post = schema["paths"]["/api/v1/cases/{case_id}/evidence/"]["post"]
+        evidence_example = evidence_post["requestBody"]["content"]["application/json"]["examples"]["RequestExample"]["value"]
+        self.assertEqual(evidence_example["evidence_type"], "witness_statement")
+        self.assertIn("witness_statement", evidence_example)
+
+        report_get = schema["paths"]["/api/v1/cases/{case_id}/report/"]["get"]
+        report_example = report_get["responses"]["200"]["content"]["application/json"]["examples"]["SuccessResponse"]["value"]
+        self.assertIn("assignments", report_example)
+        self.assertIn("evidence", report_example)
