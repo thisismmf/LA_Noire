@@ -492,6 +492,13 @@ a {
   margin: 0;
 }
 
+.flat-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
 .board-panel-grid {
   grid-template-columns: minmax(290px, 360px) 1fr;
   align-items: start;

@@ -153,3 +153,46 @@ export type DetectiveBoard = {
   connections: BoardConnection[];
   updated_at: string;
 };
+
+export type CaseReport = {
+  case: Case;
+  complaint: {
+    id: number;
+    status: string;
+    strike_count: number;
+    last_message: string;
+  } | null;
+  crime_scene_report: {
+    id: number;
+    status: string;
+    scene_datetime: string;
+    reported_by: number | null;
+    approved_by: number | null;
+    approved_at: string | null;
+    witnesses: Array<{
+      full_name: string;
+      phone: string;
+      national_id: string;
+    }>;
+  } | null;
+  reviews: Array<{
+    decision: string;
+    message: string;
+    reviewer: number | null;
+    created_at: string;
+  }>;
+  evidence: Evidence[];
+  suspects: Array<Record<string, unknown>>;
+  interrogations: Array<Record<string, unknown>>;
+  assignments: Array<Record<string, unknown>>;
+};
+
+export type TrialDecision = {
+  id: number;
+  case: number;
+  judge: number;
+  verdict: "guilty" | "not_guilty";
+  punishment_title: string;
+  punishment_description: string;
+  decided_at: string;
+};
