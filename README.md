@@ -1,6 +1,6 @@
 # LA_Noire
 
-Police Department Web System (Checkpoint 1 backend)
+Police Department Web System 
 
 ## Run (Docker)
 ```bash
