@@ -99,7 +99,7 @@ Repository evidence:
 
 # Team Responsibilities
 
-This section is intentionally aligned with the git history and the actual codebase.
+This section is describes the key responsibilities of each member.
 
 ## Mohammad Mahdi Farhadi (99105634)
 
@@ -227,7 +227,7 @@ We intentionally treated Swagger as a product requirement, not an afterthought:
 
 # Development Flow Summary (What Changed and Why)
 
-This is a condensed version of the development-flow notes included in the provided "Project Report" PDF, rewritten to stay consistent with the repository.
+This is a condensed version of the development-flow.
 
 ## Fixing a Frontend Homepage Error (Public Stats)
 
@@ -273,7 +273,7 @@ Vitest + Testing Library tests exist under `frontend/src/**` and are runnable vi
 
 # Key System Entities (And Why They Exist)
 
-This section maps directly to the Django models under `backend/apps/*/models.py`.
+This section describes the entities in the Django models under `backend/apps/*/models.py`.
 
 ## Identity, Roles, and Access
 
@@ -466,7 +466,7 @@ AI can miss subtle authorization constraints (case-scoped assignment checks, rol
 
 # Requirement Analysis (Initial vs Final)
 
-This section summarizes requirement interpretation decisions and how they evolved based on implementation feedback, with an emphasis on consistency with the shipped code.
+This section summarizes requirement interpretation decisions and how they evolved based on implementation feedback.
 
 ## Initial Requirement Analysis (What We Assumed Early)
 
