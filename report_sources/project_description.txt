@@ -1,0 +1,944 @@
+Chapter 1
+Introduction
+
+
+1.2 Evaluation Criteria
+Each checkpoint and the final submission will be evaluated based on:
+
+   1.​ Meeting the requirements specified in the project document.
+   2.​ Clean and maintainable code, following principles of SE.
+Note:
+
+   ●​ A minimum of 15 commits per checkpoint is required to receive the grade for that
+      checkpoint.
+   ●​ The repository (or repositories) must be public and accessible.
+
+
+1.3 Checkpoints
+
+1.3.1 First Checkpoint
+Only the back-end will be evaluated.
+
+
+Each required endpoint must include:
+
+   ●​   Proper error handling
+   ●​   Proper access level management
+   ●​   Adherence to REST principles
+   ●​   Compliance with software engineering best practices
+
+
+1.3.2 Second Checkpoint
+The front-end, connected to the back-end, will be evaluated.
+
+
+Important notes:
+
+   ●​ You may need to modify the back-end due to:
+         ●​ Incorrect requirement analysis
+         ●​ New front-end development requirements
+         ●​ Major architectural changes
+   ●​ Such modifications are allowed and encouraged.
+
+
+1.5 Project Implementation Guide
+
+First Checkpoint Guidance
+Start with entity model design.
+
+
+The entire system infrastructure is built on these models and their relationships. Any
+
+weakness or oversimplification here will create major problems in complex workflows
+
+such as:
+
+   ●​   Case creation
+   ●​   Evidence registration
+   ●​   Case resolution
+   ●​   Role management
+Models must be:
+
+   ●​ Precise
+   ●​ Aligned with documented requirements
+   ●​ Maintainable
+Endpoints must be built based on proper model design, not the other way around.
+
+
+You must:
+
+   ●​   Follow REST principles
+   ●​   Manage access levels properly
+   ●​   Implement proper error handling
+   ●​   Provide complete Swagger documentation
+The back-end must be:
+
+   ●​   Clear
+   ●​   Clean
+   ●​   Testable
+   ●​   Ready to connect to the front-end
+Second Checkpoint Guidance
+Your focus should be on:
+
+   ●​ Accurate
+   ●​ Efficient
+   ●​ Modular UI implementation
+All pages must be:
+
+   ●​   Role-based
+   ●​   Responsive
+   ●​   UX/UI compliant
+   ●​   Logically structured
+Complex flows such as:
+
+   ●​   Detective board
+   ●​   Case status
+   ●​   Most-wanted page
+   ●​   Admin panel
+must function without placing unnecessary load on the back-end.
+
+
+This phase requires:
+
+   ●​   Proper state management
+   ●​   Loading indicators
+   ●​   Front-end testing
+   ●​   Full Dockerization
+   ●​   Engineering best practices in component structure
+The front-end is considered acceptable when it can present project scenarios smoothly
+
+and clearly without requiring major back-end modifications.
+
+
+
+Chapter 2
+General Project Description
+
+2.1 Initial Explanation
+You have likely heard of the game L.A. Noire by Rockstar.​
+
+In this game, you play as a detective solving criminal cases in Los Angeles.
+
+
+Since the story takes place in the 1940s, almost all police department operations are
+
+conducted manually and documented on paper.
+
+
+Now, in 2025, the city police department has decided to:
+
+   ●​ Automate operations
+   ●​ Store data digitally
+The requirements of this department are described in this document.​
+
+You are responsible for building a web-based system that fulfills these requirements.
+
+
+The document will also discuss:
+
+   ●​ System workflows
+   ●​ Access levels involved in those workflows
+
+
+2.2 User Roles
+Base user roles are divided into the following categories:
+
+   ●​   System Administrator
+   ●​   Chief of Police
+   ●​   Captain
+   ●​   Sergeant
+   ●​   Detective
+   ●​   Police Officer and Patrol Officer
+   ●​   Cadet
+   ●​   Complainant and Witness
+   ●​   Suspect and Criminal
+   ●​   Judge
+   ●​   Coroner
+   ●​   Base User
+Important:
+
+
+The system administrator must be able to:
+   ●​ Add new roles
+   ●​ Remove existing roles
+   ●​ Modify roles
+All without changing the source code.
+
+
+
+2.3 Project Technology Stack
+The required stack for this project:
+
+   ●​ Front-end: React or NextJS
+   ●​ Back-end: Django REST Framework
+   ●​ Database (recommended): PostgreSQL
+
+
+
+
+Chapter 3
+Project Details
+
+3.1 Police Ranks
+
+3.1.1 Cadet
+The cadet is the lowest-ranking employee of the police department.​
+
+The primary responsibility of the cadet is to filter and perform initial validation of
+
+received complaints and, if there are no issues, forward them to higher ranks for case
+
+formation.
+
+
+
+3.1.2 Coroner
+The coroner is responsible for examining and approving or rejecting biological and
+
+medical evidence.
+
+
+
+3.1.3 Police Officer and Patrol Officer
+Police officers and patrol officers are responsible for conducting field activities and
+
+reporting any suspicious phenomena or crimes they encounter for the purpose of case
+
+formation.
+
+
+
+3.1.4 Detective
+The main responsibility of the detective is to search for evidence and reason about the
+
+connections between them.
+
+
+After analyzing the case, the detective identifies the crime suspects and reports them to
+
+the sergeant.
+
+
+The detective also assists the sergeant during the interrogation process and in drawing
+
+conclusions from it.
+
+
+
+3.1.5 Sergeant
+The sergeant is the detective’s primary collaborator and supervisor in solving the case.
+
+
+The sergeant issues arrest and interrogation orders for suspects.
+
+
+The sergeant determines the probability of guilt for suspects and reports the result to
+
+the captain or the chief of police.
+
+
+
+3.1.6 Captain
+The captain is responsible for approving the case and referring it to the judiciary for trial.
+3.1.7 Chief of Police
+In critical crimes, the chief of police, instead of the captain, refers suspects to the
+
+judiciary for trial.
+
+
+
+3.2 Crime Levels
+
+3.2.1 Level 3
+Minor crimes such as petty theft and small-scale fraud fall into this category.
+
+
+
+3.2.2 Level 2
+More serious crimes such as automobile theft fall into this category.
+
+
+
+3.2.3 Level 1
+Major crimes such as murder fall into this category.
+
+
+
+3.2.4 Critical Level
+Severe crimes such as serial murder or assassination of an important individual fall into
+
+this category.
+
+
+
+
+Chapter 4
+Workflows
+
+4.1 Registration and Login
+Each user must first create an account in the system with the role of a base user by
+
+providing at least:
+   ●​   Username
+   ●​   Password
+   ●​   Email
+   ●​   Phone number
+   ●​   First name and last name
+   ●​   National ID number
+After that, the system administrator assigns the required role(s) to each user.
+
+
+Roles are dynamic, and:
+
+   ●​ New roles can be created
+   ●​ Existing roles can be deleted
+Login to the system must be performed using a password and one of the following:
+
+   ●​   Username
+   ●​   National ID
+   ●​   Phone number
+   ●​   Email
+It is obvious that all of these fields must be unique.
+
+
+
+4.2 Case Formation
+A case begins to take shape when either:
+
+   ●​ A complainant files a complaint, or
+   ●​ A police rank (other than a cadet) observes a crime scene or receives a report
+      and wants to register it.
+
+
+4.2.1 Case Formation Through Complaint Registration
+First, the complainant logs into the system.​
+
+Then, through the website menus, they request the creation of a case.
+
+
+They enter the case information and perform an initial submission.
+
+
+Next, the information is sent to a cadet for review.
+If the cadet confirms that all submitted information is valid, the cadet must forward the
+
+case to their superior (a police officer).
+
+
+If, after the police officer’s review, everything is correct, the case is officially formed.
+
+
+Pay attention to the following:
+
+   ●​ If the cadet finds a defect in the case, it is returned to the complainant for
+      correction.
+   ●​ When the cadet sends the case back to the complainant, it must include an error
+      message written by the cadet.
+   ●​ If the police officer finds a defect in the case, it is not returned directly to the
+      complainant. Instead, it is sent back to the cadet for re-evaluation.
+   ●​ If the complainant submits incomplete or incorrect information three times, the
+      case is invalidated and will no longer be reviewed by police ranks.
+   ●​ A case may have multiple complainants. The information of complainants must
+      be approved or rejected by the cadet.
+
+
+4.2.2 Case Formation Through Crime Scene Registration
+First, a police rank other than a cadet observes a crime scene or receives a report from
+
+local witnesses.
+
+
+In this type of case:
+
+   ●​ The police officer records the crime scene along with the date and time in the
+      case.
+   ●​ The phone number and national ID of witnesses are recorded for future
+      follow-up.
+   ●​ In this case, only one superior rank must approve the case (if the chief of police
+      registers it, no approval is required).
+   ●​ Initially, these cases do not have complainants, but over time, complainants may
+      be added.
+
+
+4.3 Evidence Registration
+Evidence is divided into two categories, which will be discussed below.
+Important notes:
+
+    ●​ All evidence must include a title and description.
+    ●​ All evidence must have a registration date.
+    ●​ All evidence must have a registrant.
+
+
+4.3.1 Witness Statements or Local Testimonies
+For each case, a transcription of witness statements may be recorded.
+
+
+Additionally, local individuals may have:
+
+    ●​ Images
+    ●​ Videos
+    ●​ Audio
+related to the incident.
+
+
+
+4.3.2 Discovered Evidence: Biological and Medical
+At the crime scene, evidence may be found that requires forensic examination.
+
+
+For example:
+
+    ●​ Blood stains
+    ●​ Hair strands
+    ●​ Fingerprints
+These must be examined and approved either by the coroner or through the national
+
+identity database.
+
+
+These items must be stored with:
+
+    ●​ A title
+    ●​ A description
+    ●​ One or more images
+The result of follow-up from the coroner or database is initially empty but may later be
+
+filled.
+4.3.3 Discovered Evidence: Vehicles
+A vehicle related to the crime scene may be found in the area.
+
+
+The following must be recorded as evidence:
+
+   ●​ Model
+   ●​ License plate
+   ●​ Color
+If the vehicle does not have a license plate, its serial number must be recorded.
+
+
+Note:
+
+
+When saving this type of evidence, license plate and serial number cannot both have
+
+values at the same time.
+
+
+
+4.3.4 Discovered Evidence: Identification Documents
+An identification document belonging to a suspect may be found at the crime scene.
+
+
+In this case, the system must allow storing:
+
+   ●​ The full name of the document owner
+   ●​ Other document information in key–value format
+These key–value pairs do not have a fixed number and may even not exist at all.
+
+
+For example, it could be an identification card that only contains the person’s name.
+
+
+
+4.3.5 Discovered Evidence: Other Items
+Other types of evidence must be recorded as a simple title–description record.
+
+
+
+4.4 Case Resolution
+After formation, a case may be reviewed by a detective.
+The detective has a detective board where documents and evidence are placed (in any
+
+location chosen by the detective).
+
+
+The detective may connect related documents with a red line.
+
+
+After analysis, the detective reports the primary suspects to the sergeant and waits for
+
+approval.
+
+
+The sergeant reviews the available evidence and matches the detective’s reasoning
+
+with the suspects’ records.
+
+   ●​ If approved, a confirmation message is sent to the detective and the arrest
+      process begins.
+   ●​ If the sergeant disagrees, the objection is returned to the detective in the form of
+      a message and the case remains open.
+Note:
+
+
+New documents and evidence may be added during case resolution.​
+
+For each addition, a notification must be sent to the detective.
+
+
+
+4.5 Suspect Identification and Interrogation
+After arrest, suspects are interrogated by both the sergeant and the detective.
+
+
+Each of them assigns a guilt probability score from 1 to 10 (lowest to highest).
+
+
+These scores are sent to the captain.
+
+
+The captain gives the final opinion based on:
+
+   ●​ Statements
+   ●​ Evidence
+   ●​ Recorded scores
+In critical-level crimes, after the captain’s decision, the chief of police must also approve
+
+or reject the captain’s decision.
+4.6 Trial
+The guilty individual must go to court.
+
+
+The judge must have access to:
+
+   ●​   The entire case
+   ●​   All evidence and documents
+   ●​   Full details of all police members involved in the case
+   ●​   All mentioned entities with complete specifications
+   ●​   Every report
+   ●​   All approvals or rejections and their details
+The judge then records the final verdict of guilty or not guilty.
+
+
+If guilty, the judge records the punishment with a title and description.
+
+
+
+4.7 Suspect Status
+From the moment a person is identified as a suspect in a case, they are placed under
+
+the status of wanted.
+
+
+Suspects who have been wanted for more than one month are placed under most
+
+wanted status.
+
+
+Their photo and details must be displayed on a page visible to all users.
+
+
+Note 1: Ranking Formula for the Most Wanted Page
+Ranking is calculated as:
+
+
+max(Lj) × max(Di)
+
+
+Where:
+
+   ●​ max(Lj) = The maximum number of days the person has been wanted in an open
+      case
+   ●​ max(Di) = The highest crime level committed so far (1 to 4 corresponding to
+      Level 3 to Critical), considering both open and closed cases
+
+
+Below each person’s information, a reward must be displayed for providing information
+
+about them.
+
+
+The reward is calculated as:
+
+
+max(Lj) × max(Di) × 20,000,000
+
+
+The amount is in Rials.
+
+
+
+4.8 Reward
+A base user logs into the system and submits information regarding a case or suspect.
+
+
+A police officer performs an initial review.
+
+   ●​ If the information is completely invalid, it is rejected.
+   ●​ Otherwise, it is forwarded to the detective responsible for the case.
+If the detective confirms the information:
+
+   ●​ The user is notified that their information was useful.
+   ●​ A unique identifier is issued to the user.
+The user can then go to the police department and present the code to receive their
+
+reward.
+
+
+Additionally, all police ranks must be able to:
+
+   ●​ Enter the person’s national ID
+   ●​ Enter the unique code
+and view:
+
+   ●​ The reward amount
+   ●​ The relevant user’s information
+4.9 Bail and Fine Payment (Optional)
+Suspects of Level 2 and Level 3 crimes may be released from detention by paying bail.
+
+
+Level 3 criminals (with sergeant approval) may also be released by paying a fine.
+
+
+The amount is determined by the sergeant.
+
+
+Therefore, your system must be connected to a payment gateway.
+
+
+
+
+Chapter 5
+Required Pages
+
+5.1 Main Page (Home)
+On this page, you must provide a general introduction to:
+
+   ●​ The system
+   ●​ The police department
+   ●​ Their responsibilities
+On the homepage, you must display at least three statistics related to cases and their
+
+statuses.
+
+
+Our suggestion includes the following three items:
+
+   ●​ Total number of resolved cases
+   ●​ Total number of organization employees
+   ●​ Number of active cases
+5.2 Login and Registration Page
+A dedicated login and registration page must exist through which users can:
+
+   ●​ Log into the system
+   ●​ Register in the system
+
+
+5.3 Modular Dashboard
+Each user account must be shown a dashboard appropriate to their role.
+
+
+The dashboard must be modular, meaning:
+
+   ●​ On the main dashboard page, several modules (for example: auditing, case
+      review, complaint review, etc.) must be displayed according to the user's access
+      level.
+For example:
+
+   ●​ A detective must see the “Detective Board” module in their dashboard.
+   ●​ A coroner must not see such a module in their dashboard.
+
+
+5.4 Detective Board
+The detective board must contain:
+
+   ●​ Several documents or notes
+These documents and notes:
+
+   ●​ Must be connectable to one another using red lines
+   ●​ Their positions must be changeable via drag-and-drop
+   ●​ The connecting lines must be removable and addable
+Additionally:
+
+   ●​ It must be possible to export the board as an image so that the detective can
+      attach it to their report.
+As guidance, a sample real detective board is shown in the original document.
+5.5 Most Wanted
+On this page, you must display criminals and suspects classified as most wanted, along
+
+with the details specified about them in previous sections.
+
+
+
+5.6 Case and Complaint Status
+Each user, according to their access level and the defined rules, must be able to:
+
+   ●​ View cases and complaints related to them (i.e., those they have access to)
+   ●​ Edit them if permitted
+This page is important in the workflows mentioned earlier regarding:
+
+   ●​   Creating
+   ●​   Editing
+   ●​   Deleting data from cases
+   ●​   Approving
+   ●​   Rejecting
+   ●​   Changing statuses
+
+
+5.7 General Reporting
+This page is mainly intended for:
+
+   ●​ Judge
+   ●​ Captain
+   ●​ Chief of Police
+On this page, you must display a comprehensive report of each case, including:
+
+   ●​   Date of formation
+   ●​   Evidence
+   ●​   Witness statements
+   ●​   Suspects (if any)
+   ●​   Criminal
+   ●​   Complainant(s)
+   ●​   Names and ranks of all individuals involved in the case
+
+
+5.8 Evidence Registration and Review
+According to the defined workflows, you must provide the ability for each user,
+
+depending on their access level, to:
+
+   ●​ Register evidence
+   ●​ Review evidence
+
+
+
+
+Chapter 6
+Items Evaluated in the First Checkpoint Submission
+The first checkpoint, which includes the back-end of the project, is graded out of 4750
+
+points. The details are provided below.
+
+
+It should be emphasized that submitting the final project report is a mandatory condition
+
+for receiving any project grade. Failure to submit the report will result in receiving zero
+
+for the entire project (losing the 8 course points plus the 1.5 bonus points).
+
+
+Also note that a significant portion of the project grade is allocated to:
+
+   ●​ Code cleanliness
+   ●​ Technical details
+Therefore, you must treat this matter seriously to avoid losing points.
+Additionally, your back-end must include Swagger documentation; otherwise, it will not
+
+be graded.
+
+
+
+Evaluation Checklist
+□ Reasonable and precise design of entity models according to requirements (750
+
+points)
+
+
+□ Appropriate endpoints to meet the specified requirements (1000 points)
+
+
+□ Required CRUD APIs — neither more nor less than necessary (250 points)
+
+
+□ Adherence to stated REST principles (100 points)
+
+
+□ Proper access-level verification and appropriate response for each API call (250
+
+points)
+
+
+□ Proper implementation of endpoints for workflows (400 points)
+
+
+□ Implementation of role-based access control (RBAC) (200 points)
+
+
+□ Role flexibility (adding new roles, deleting or modifying existing roles) without
+
+modifying the code (150 points)
+
+
+□ Efficient and appropriate endpoints for workflows (1100 points)
+
+
+Subsections of workflow endpoints:
+
+   ●​   □ Registration and login (100 points)
+   ●​   □ Case formation (100 points)
+   ●​   □ Evidence registration (100 points)
+   ●​   □ Case resolution (200 points)
+   ●​   □ Suspect identification and interrogation (100 points)
+   ●​   □ Trial (100 points)
+   ●​   □ Suspect status (100 points)
+   ●​ □ Reward (100 points)
+   ●​ □ Payment (200 points)
+□ Endpoint for retrieving aggregated and general statistics (200 points)
+
+
+□ Correct implementation of suspect and criminal ranking (300 points)
+
+
+□ Existence of a payment gateway return page (100 points)
+
+
+□ Dockerization of the back-end project and its related services (200 points)
+
+
+□ Complete and reliable Swagger documentation (including appropriate
+
+request/response examples and full explanations) (250 points)
+
+
+□ At least 5 tests in two different apps (minimum total of 10 tests) (100 points)
+
+
+□ Clean code and adherence to best practices taught in class (100 points)
+
+
+□ Breaking the back-end into a reasonable number of apps (not too many and not too
+
+few) (100 points)
+
+
+□ Proper use of Django and DRF features and avoidance of unnecessary boilerplate
+
+code as much as possible (100 points)
+
+
+□ Ease of code modification (adding new features or modifying existing ones) (100
+
+points)
+
+
+
+
+Chapter 7
+Items Evaluated in the Second Checkpoint
+Submission
+In the second checkpoint, the front-end of the project will be evaluated.
+Naturally, you are allowed to modify the back-end code if necessary (for the purpose of
+
+creating a better infrastructure for front-end implementation). However, you should try,
+
+as much as possible, to use the back-end developed in the first checkpoint.
+
+
+Again, in this phase:
+
+   ●​ Code cleanliness
+   ●​ Technical implementation details
+are of great importance, and poor code quality will absolutely not be tolerated.
+
+
+It is once again emphasized that at the end of the second checkpoint, you are required
+
+to upload the final project report. Otherwise, you will lose the entire project grade, and
+
+no excuses will be accepted.
+
+
+
+Checklist for This Checkpoint
+□ Proper implementation of pages (appropriate UX/UI and accurate functionality
+
+according to requirements) (3000 points)
+
+
+Subsections:
+
+   ●​   □ Main page (200 points)
+   ●​   □ Login and registration page (200 points)
+   ●​   □ Modular dashboard (800 points)
+   ●​   □ Detective board (800 points)
+   ●​   □ Most wanted page (300 points)
+   ●​   □ Case and complaint status page (200 points)
+   ●​   □ General reporting page (300 points)
+   ●​   □ Evidence registration and review page (200 points)
+   ●​   □ Admin panel (not Django admin, but with similar functionality) (200 points)
+□ Display of loading states and layout skeletons (300 points)
+
+
+□ Dockerization of the entire project and use of Docker Compose (300 points)
+
+
+□ At least 5 tests in the front-end section (100 points)
+□ Proper state management (100 points)
+
+
+□ Responsive pages (300 points)
+
+
+□ Adherence to best practices taught in class and presented in slides (150 points)
+
+
+□ Proper implementation and consideration of component lifecycle (100 points)
+
+
+□ Appropriate error message display according to different conditions (100 points)
+
+
+□ Ease of code modification (100 points)
+
+
+
+
+Chapter 8
+Related Tutorials and Resources
+Below are several links and topics for further learning:
+
+
+
+8.1 Designing and Implementing Responsive Pages
+   ●​   MDN Documentation — Media Queries
+   ●​   dev.Web — Responsive Design Guide
+   ●​   CSS Tricks — Flexbox Guide
+   ●​   Dribbble
+
+
+8.2 Implementing Access Levels in Django
+   ●​ The concept of RBAC (Role-Based Access Control)
+   ●​   A simple example of RBAC implementation in Django
+   ●​   Django Documentation — Permissions
+   ●​   Django — Authentication and Access Control
+   ●​   Permissions in DRF
+
+
+8.3 Back-End Testing
+   ●​   Dayton Unit Testing Documentation
+   ●​   Pytest Guide
+   ●​   Django Testing Tutorial
+   ●​   DRF Tests
+
+
+8.4 Front-End Testing
+   ●​ React Testing Library
+   ●​ Jest (JavaScript testing)
+   ●​ Playwright
+
+
+8.5 Designing and Creating a Pipeline
+   ●​ GitLab CI/CD Pipelines
+   ●​ GitHub Actions Documentation
+   ●​ Using Docker with CI/CD
+
+
+8.6 CI/CD
+   ●​ Continuous Integration — Atlassian
+   ●​ Continuous Delivery — ThoughtWorks
+
+
+8.7 Test Payment Gateways
+   ●​ ZarinPal
+   ●​ IDPay
+   ●​ BitPay
+
+
+This completes the full translation of your entire document.
+If you want, I can now:
+
+   ●​ Review the translation for consistency
+   ●​ Format everything into a clean PDF-ready structure
+   ●​ Or help you extract the system requirements into a technical specification
+      document
+

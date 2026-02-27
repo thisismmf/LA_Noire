@@ -1,0 +1,1423 @@
+A final project report is mandatory and must be submitted as:
+
+   ●​ PDF, or​
+
+   ●​ GitHub/GitLab Wiki.
+
+
+
+
+1.4 Project Report
+It is strongly recommended not to write the report at the end. Instead:
+
+   ●​ Write it gradually in the GitHub/GitLab Wiki​
+
+   ●​ Or document everything in Obsidian (a powerful Markdown documentation tool) and
+      export it as PDF​
+
+
+The report must include:
+
+   ●​ Responsibilities and contributions of each team member​
+
+   ●​ Development conventions (naming rules, commit message format, etc.)​
+
+   ●​ Project management approach (task creation and distribution)​
+
+   ●​ Key system entities and justification for their existence​
+
+   ●​ Up to 6 NPM packages used in the project, with explanation and justification​
+
+   ●​ Examples of AI-generated code​
+
+   ●​ Strengths and weaknesses of AI in front-end development​
+
+   ●​ Strengths and weaknesses of AI in back-end development​
+
+   ●​ Initial and final requirement analysis, including strengths and weaknesses of decisions
+      made​
+
+
+Important:The report will be reviewed for consistency with the actual project.​
+ If inconsistencies are found, it will be considered not submitted.​
+​
+​
+2 Development Flow
+
+
+**Goal Addressed**
+
+- Fixed the frontend homepage banner error: `Request Error: Authentication credentials were
+not provided.` by correcting backend access control for the homepage statistics endpoint.
+
+- Upgraded Swagger/OpenAPI documentation to satisfy the project requirement for “appropriate
+request/response examples and full explanations” by adding domain-specific examples and
+per-endpoint explanations across almost all endpoints.
+
+- Verified the running Docker stack, showed how to inspect Postgres tables, and ensured the
+backend/admin is reachable.
+
+
+
+**1) Root Cause Analysis and Fix for the Frontend Error**
+
+- Observed the React home page calls `GET /api/v1/stats/overview/` without authentication.
+
+- Backend configuration had global DRF defaults enforcing authentication:
+
+ - `REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = IsAuthenticated` in
+`LA_Noire/backend/police_portal/settings.py`
+
+- The stats endpoint did not override permissions, so anonymous calls correctly returned 401,
+and the frontend displayed the error banner.
+
+
+
+**Backend fix**
+
+- Made the homepage stats endpoint explicitly public:
+
+ - `LA_Noire/backend/apps/stats/views.py:45` sets `permission_classes = [AllowAny]` and adds
+a clear Swagger description.
+
+
+
+**Verification**
+
+- Confirmed anonymously:
+ - `http://localhost:8000/api/v1/stats/overview/` returns `200` with JSON.
+
+- Added regression tests ensuring:
+
+ - The stats endpoint stays public.
+
+ - Swagger includes a non-generic example for it.
+
+ - `LA_Noire/backend/apps/stats/tests/test_stats_docs.py`
+
+
+
+**2) Swagger / OpenAPI Documentation Improvements (Major Work)**
+
+This was the main “checkpoint rubric” improvement: ensure docs are complete, include
+meaningful examples, and provide explanations.
+
+
+
+**2.1 Fixed incorrect/insufficient endpoint documentation**
+
+- Login endpoint originally documented `200: None` even though it returns `{tokens, user}`.
+
+- Added proper response serializer and updated schema:
+
+ - `LA_Noire/backend/apps/accounts/serializers.py:91` introduces `LoginResponseSerializer`
+(and nested token pair serializer).
+
+ - `LA_Noire/backend/apps/accounts/views.py` now documents the correct response type and
+adds explicit description text for auth/errors.
+
+
+
+**2.2 Token refresh endpoint documentation**
+
+- `TokenRefreshView` from SimpleJWT was previously used directly, which produces weaker
+docs.
+
+- Implemented a wrapper view with request/response schema + examples:
+
+ - `LA_Noire/backend/apps/accounts/views.py:41` `TokenRefreshDocsView`
+
+ - Wired it in:
+
+  - `LA_Noire/backend/apps/accounts/urls.py`
+**2.3 Replaced generic placeholder examples with domain-specific examples**
+
+Previously the schema layer injected generic fallback examples like `{"example": "value"}` /
+`{"success": true}` which is not acceptable for “complete Swagger documentation”.
+
+
+
+What I changed:
+
+- Implemented an example generator that:
+
+ - Generates examples from serializers by type.
+
+ - Uses domain-specific canonical examples for key serializers and complex workflows.
+
+- Added explicit maps of “good examples” for requests and responses for most serializers,
+including:
+
+ - Auth/register/login
+
+ - RBAC role and assign/remove
+
+ - Complaints, crime-scene workflow, assignments
+
+ - Evidence creation (witness/medical/vehicle/document)
+
+ - Detective board items and connections
+
+ - Suspect proposal/approval, most-wanted, suspect status updates
+
+ - Interrogations, scoring, captain/chief decisions
+
+ - Trial decision and case report output
+
+ - Tips/rewards and reward lookup
+
+ - Payments create/callback/return
+
+ - Notifications
+
+ - Stats overview
+
+- Key implementation point:
+
+ - `LA_Noire/backend/police_portal/schema.py:101` (`SERIALIZER_REQUEST_EXAMPLES`
+and response examples) and related helper functions.
+**2.4 Added endpoint explanations (human-readable descriptions)**
+
+To meet “full explanations”, I added docstrings on most view handlers and key class views, so
+the generated schema contains real narrative per route (not just one global text).
+
+
+
+Updated views include (examples; these cover most of the API surface):
+
+- `LA_Noire/backend/apps/cases/views.py`
+
+- `LA_Noire/backend/apps/evidence/views.py`
+
+- `LA_Noire/backend/apps/board/views.py`
+
+- `LA_Noire/backend/apps/suspects/views.py`
+
+- `LA_Noire/backend/apps/interrogations/views.py`
+
+- `LA_Noire/backend/apps/trials/views.py`
+
+- `LA_Noire/backend/apps/rewards/views.py`
+
+- `LA_Noire/backend/apps/payments/views.py`
+
+- `LA_Noire/backend/apps/rbac/views.py`
+
+- `LA_Noire/backend/apps/notifications/views.py`
+
+- `LA_Noire/backend/apps/accounts/views.py`
+
+
+
+**2.5 Added schema regression tests**
+
+To avoid backsliding to missing descriptions or placeholder examples, I added tests that
+enforce:
+
+- Every operation has a description.
+
+- JSON endpoints have request examples and success response examples.
+
+- Examples are not generic placeholders.
+
+- Complex workflows (complaint creation, evidence creation, case report) include
+domain-specific shapes.
+
+- Test location:
+ - `LA_Noire/backend/apps/stats/tests/test_stats_docs.py:82`
+
+
+
+**3) Docker / Runtime Inspection and Operational Guidance**
+
+**3.1 Confirmed running services**
+
+- Verified containers are up (`db`, `web`, `frontend`), ports mapped:
+
+ - Postgres exposed on `localhost:5433`
+
+ - Django on `localhost:8000`
+
+ - Frontend on `localhost:5173`
+
+
+
+**3.2 How to inspect Postgres tables**
+
+- Inside container:
+
+ - `docker compose exec db psql -U police_portal -d police_portal`
+
+ - `\dt` to list tables
+
+ - `\d <table>` to describe a table
+
+- From host GUI client:
+
+ - Host `localhost`, port `5433`, db/user/pass all `police_portal`
+
+
+
+**3.3 Backend visibility**
+
+- Swagger UI: `http://localhost:8000/api/docs/`
+
+- OpenAPI schema: `http://localhost:8000/api/schema/`
+
+- Admin: `http://localhost:8000/admin/`
+
+
+
+**3.4 Created a superuser for admin access**
+
+- Created/initialized an admin user in the running container:
+ - Username `admin`
+
+ - Password `Admin1234!`
+
+- Confirmed `GET /admin/` returns `200`.
+
+
+
+**4) Testing**
+
+- Ran backend tests (pytest) including the new schema tests.
+
+- Result at the time of completion: `34 passed`.
+
+
+
+**5) Git Commits Created (As Requested)**
+
+You requested committing both previous and future changes. Two commits were created:
+
+
+
+1. `01ec0d2` `Fix public stats endpoint and improve schema examples`
+
+- Files include:
+
+ - Public stats permission fix
+
+ - Correct login response schema
+
+ - Initial schema improvements
+
+ - Added stats/docs tests
+
+
+
+2. `3bb278c` `Expand Swagger coverage across workflow endpoints`
+
+- Files include:
+
+ - Per-endpoint explanations across most apps
+
+ - Domain-specific serializer examples across the API
+
+ - Schema regression tests ensuring descriptions/examples exist
+**6) Key Files You Can Cite in Your Report**
+
+- Homepage stats endpoint fix:
+
+ - `LA_Noire/backend/apps/stats/views.py:45`
+
+- Correct login response documentation:
+
+ - `LA_Noire/backend/apps/accounts/serializers.py:91`
+
+ - `LA_Noire/backend/apps/accounts/views.py`
+
+- Token refresh docs wrapper:
+
+ - `LA_Noire/backend/apps/accounts/views.py:41`
+
+ - `LA_Noire/backend/apps/accounts/urls.py`
+
+- Swagger example system (domain examples + generator):
+
+ - `LA_Noire/backend/police_portal/schema.py:101`
+
+- Swagger regression tests:
+
+ - `LA_Noire/backend/apps/stats/tests/test_stats_docs.py:82`
+
+
+
+**7) Known Non-Functional Notes**
+
+- Pytest emitted a Windows cache warning about `.pytest_cache` directory creation; tests still
+ran and passed.
+
+- Git emitted line-ending warnings (LF vs CRLF) during commits; no functional impact.
+**Executive Summary**
+
+I performed a full requirement-to-code reconciliation based on your project description and your
+issue list, then implemented backend, frontend, and test updates to enforce the intended
+workflow, access control, and state-transition behavior.
+
+I also created migrations, validated with automated tests, and committed the work in 3
+structured commits.
+
+
+
+**Commits**
+
+- `22efd67` `feat(backend): enforce workflow ownership and role access across cases`
+
+- `abd4f7e` `feat(frontend): align case review UI with new workflow routing rules`
+
+- `2b283b3` `test: expand case workflow coverage for assignment and approval edge cases`
+
+
+
+## **1) What I reviewed and how I approached it**
+
+- Re-read extracted project PDF flow sections and compared each required workflow with
+current backend behavior.
+
+- Reviewed core modules:
+
+ - Cases workflow and visibility
+
+ - Detective board access
+
+ - Suspect approval/rejection flow
+
+ - Interrogation captain/chief decision path
+
+ - Frontend role guards and case workflow UI
+
+- Ran baseline tests first to establish known-good starting point.
+
+- Implemented fixes with migrations and expanded tests for regression protection.
+
+
+
+## **2) Backend fixes implemented**
+### **A. Complaint workflow ownership, routing, and strike logic**
+
+Files:
+
+-
+[models.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/cases/m
+odels.py)
+
+-
+[serializers.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/cases
+/serializers.py)
+
+-
+[views.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/cases/vie
+ws.py)
+
+
+
+Changes:
+
+- Added complaint assignment fields:
+
+ - `assigned_cadet` (nullable FK)
+
+ - `assigned_officer` (nullable FK)
+
+- Enforced cadet-to-officer explicit routing:
+
+ - Cadet approval now requires `officer_id`.
+
+- Enforced same-owner return path:
+
+ - Officer can return only to the assigned cadet.
+
+ - Only assigned officer can review assigned complaint.
+
+ - Only assigned cadet can continue returned complaint.
+
+- Changed strike behavior to match your requirement:
+
+ - Strike increments on cadet return-to-complainant.
+
+ - On 3rd return, complaint becomes `voided`.
+
+ - Complainant receives notification when returned/voided.
+
+- Adjusted queue visibility:
+ - Cadets see only unassigned pending cadet items + their assigned items.
+
+ - Officers/patrol officers see only complaints assigned to them.
+
+- Complaint detail/list access now respects assignment and role, not broad unrestricted viewing.
+
+
+
+### **B. Complainant logic corrections**
+
+Files:
+
+-
+[serializers.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/cases
+/serializers.py)
+
+-
+[views.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/cases/vie
+ws.py)
+
+
+
+Changes:
+
+- Initial complaint submission allows only the primary complainant.
+
+- Officer case formation requires primary complainant approval by cadet.
+
+- Additional complainants added later by cadet are auto-approved (no extra confirmation
+needed).
+
+- Review endpoint blocks re-review for those auto-approved later complainants.
+
+
+
+### **C. Case visibility policy aligned to workflow**
+
+File:
+
+-
+[views.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/cases/vie
+ws.py)
+
+
+
+Changes:
+
+- Complaint cases:
+ - Cadet-only while early complaint workflow is not yet police-wide.
+
+ - Broad police visibility after activation stage.
+
+- Crime-scene cases:
+
+ - Creator and superiors can view pending-superior cases.
+
+ - Non-cadet police can view after approval/activation.
+
+- Added superior-role logic based on role priority mapping.
+
+
+
+### **D. Crime-scene witness DB consistency**
+
+File:
+
+-
+[serializers.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/cases
+/serializers.py)
+
+
+
+Changes:
+
+- Witness entries now validate against existing user DB records:
+
+ - `national_id` must exist.
+
+ - `phone` must match DB.
+
+ - Name must match normalized DB full name (or gets normalized).
+
+
+
+### **E. Detective board access restriction**
+
+File:
+
+-
+[views.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/board/vie
+ws.py)
+
+
+
+Changes:
+- Restricted board endpoints to detective-only behavior.
+
+- Added explicit detective-role check for board read/write/delete/link actions.
+
+- Prevents non-detective access even if they have other high ranks.
+
+
+
+### **F. Suspect decision flow hardening**
+
+File:
+
+-
+[serializers.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/suspe
+cts/serializers.py)
+
+
+
+Changes:
+
+- Sergeant rejection now requires reason message (reject-without-reason is blocked).
+
+
+
+### **G. Interrogation captain/chief decision corrections**
+
+Files:
+
+-
+[models.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/interroga
+tions/models.py)
+
+-
+[serializers.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/interr
+ogations/serializers.py)
+
+-
+[views.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/interrogati
+ons/views.py)
+
+
+
+Changes:
+
+- Added `captain_reviewed_by` field for decision traceability.
+
+- Enforced single approved offender per case (blocks second approval).
+- Chief rejection no longer final-closes as rejected in that branch:
+
+ - Returns interrogation to `pending_captain`.
+
+ - Sends notification to the captain with chief notes.
+
+- Maintains critical-crime captain→chief escalation logic.
+
+
+
+## **3) Frontend fixes implemented**
+
+
+
+Files:
+
+-
+[CasesPage.tsx](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/frontend/src/pages
+/CasesPage.tsx)
+
+-
+[casesApi.ts](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/frontend/src/pages/ca
+sesApi.ts)
+
+-
+[router.tsx](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/frontend/src/app/router.t
+sx)
+
+-
+[modules.ts](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/frontend/src/features/d
+ashboard/modules.ts)
+
+- [types.ts](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/frontend/src/api/types.ts)
+
+
+
+Changes:
+
+- Cadet complaint approval UI now requires entering officer user ID.
+
+- Updated API payload to send `officer_id`.
+
+- Queue UI now displays fuller complaint details to support cadet review context.
+
+- Detective board route is now guarded for detective only.
+
+- Dashboard module visibility for detective board is detective-only.
+- Updated complaint type with new assignment fields.
+
+
+
+## **4) Database schema changes**
+
+
+
+Migrations:
+
+-
+[0003_complaint_assigned_cadet_complaint_assigned_officer.py](G:/ImportantFolders/Sharif/te
+rm%209/WP/Project/LA_Noire/backend/apps/cases/migrations/0003_complaint_assigned_cade
+t_complaint_assigned_officer.py)
+
+-
+[0002_interrogation_captain_reviewed_by.py](G:/ImportantFolders/Sharif/term%209/WP/Project
+/LA_Noire/backend/apps/interrogations/migrations/0002_interrogation_captain_reviewed_by.py)
+
+
+
+Changes are additive only:
+
+- `cases_complaint.assigned_cadet_id` (nullable FK)
+
+- `cases_complaint.assigned_officer_id` (nullable FK)
+
+- `interrogations_interrogation.captain_reviewed_by_id` (nullable FK)
+
+
+
+No destructive migration was introduced. Existing records are preserved.
+
+
+
+## **5) Test work and verification**
+
+
+
+File:
+
+-
+[test_flows.py](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/backend/apps/cases
+/tests/test_flows.py)
+
+
+
+Added/updated tests for:
+- 3-return invalidation from cadet path.
+
+- Cadet approve requires officer selection.
+
+- Assigned-officer-only review.
+
+- Returned complaint can be handled only by same assigned cadet.
+
+- Auto-approved additional complainants.
+
+- Witness DB consistency checks.
+
+- Complaint/crime-scene visibility rules.
+
+- Detective-board non-detective access blocked.
+
+- Suspect rejection reason requirement.
+
+- Captain single-offender approval constraint.
+
+- Chief rejection loop-back to captain with notification.
+
+
+
+Verification results:
+
+- Backend: `pytest -q` -> `44 passed`
+
+- Frontend tests: `npm test -- --run` -> `10 passed`
+
+- Frontend build: `npm run build` -> success
+
+
+
+## **6) NPM usage and what it means in this project**
+
+
+
+`npm` in this repo is used for frontend dependency management, scripts, and build/test lifecycle.
+
+
+
+From
+[package.json](G:/ImportantFolders/Sharif/term%209/WP/Project/LA_Noire/frontend/package.js
+on):
+
+- `npm ci`
+ - Reproducible install from `package-lock.json` (used in Dockerfile for deterministic builds).
+
+- `npm run build`
+
+ - Runs `tsc -b` + Vite production build into `dist/`.
+
+- `npm test -- --run`
+
+ - Executes Vitest suite once (CI-like mode).
+
+- `npm run dev`
+
+ - Starts Vite dev server locally (outside Docker production container).
+
+- `npm run lint`
+
+ - Runs ESLint checks.
+
+
+
+Docker frontend build pipeline:
+
+- `npm ci` -> `npm run build` in Node builder stage
+
+- Copy built `dist` into Nginx image for serving static assets
+
+
+
+## **7) Development conventions followed**
+
+
+
+I followed these conventions during implementation:
+
+- Small, focused commits by concern:
+
+ - backend behavior
+
+ - frontend integration
+
+ - tests
+
+- No destructive git operations.
+
+- Added migration files instead of manual DB mutation.
+
+- Kept changes aligned with existing app architecture (DRF views/serializers/policies + React
+Query pages).
+- Added test coverage for each risky workflow branch.
+
+- Kept role/access checks server-side authoritative.
+
+- Ensured frontend route/module gating reflects backend security (defense in depth).
+
+- Validated with both backend and frontend automated checks before finalizing.
+
+
+
+## **8) Report-ready “before vs after” highlights**
+
+
+
+Before:
+
+- Complaint ownership was implicit; returns/routing could violate intended chain.
+
+- Strike invalidation happened on resubmit path, not cadet return path.
+
+- Board accessible to non-detective roles.
+
+- Witness data not guaranteed to match registered DB identity.
+
+- Interrogation critical rejection path did not enforce captain re-decision loop.
+
+- Multi-complainant behavior did not cleanly distinguish primary vs later complainants.
+
+
+
+After:
+
+- Complaint flow is assignment-driven and role-validated at each hop.
+
+- Third cadet return voids complaint and notifies complainant.
+
+- Detective board is detective-only in backend and frontend.
+
+- Crime-scene witness identity is validated against DB.
+
+- Captain/chief decision path enforces single approved offender and rework loop.
+
+- Primary complainant approval is enforced; later complainants are cadet-added and
+auto-approved.
+
+- Regression tests now guard these edge cases.
+**Work Summary (For Report)**
+
+I completed two rounds of backend work: an initial backend-hardening pass, then a full pass
+against your feedback checklist.
+
+All changes are committed on branch `front`.
+
+
+
+Recent commits:
+
+1. `21d28d1` `cases: add complainant review workflow and case assignment APIs`
+
+2. `a5cb1b9` `authz: enforce case-scoped access on board and evidence endpoints`
+
+3. `eeb92cc` `workflows: notify detective decisions, widen reward lookup roles, add regression
+tests`
+
+4. `95c9f77` `api: tighten workflows, access control, and OpenAPI coverage`
+
+5. `1a5e5e2` `test: cover queues, access enforcement, rewards, and payment validation`
+
+
+
+---
+
+
+
+**What I Changed (Detailed)**
+
+
+
+1. **Swagger/OpenAPI reliability (drf-spectacular)**
+
+- Added explicit `@extend_schema` for many APIView methods where schema inference was
+failing.
+
+- Added request/response serializers for previously ambiguous endpoints.
+
+- Removed the duplicate crime-scene approval route collision by keeping one canonical route.
+
+- Added schema-friendly behavior in list views that previously failed under `swagger_fake_view`.
+
+- Result: `python manage.py spectacular --file schema.yaml` now returns **0 errors** (only
+enum naming warnings).
+Key files:
+
+- [accounts/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/accounts/views.py)
+
+- [board/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/board/views.py)
+
+- [cases/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/views.py)
+
+- [notifications/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/notifications/views.py)
+
+- [payments/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/payments/views.py)
+
+- [rewards/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/rewards/views.py)
+
+- [stats/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/stats/views.py)
+
+- [suspects/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/suspects/views.py)
+
+- [trials/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/trials/views.py)
+
+
+
+2. **RBAC pragmatic fix for system-role mutability**
+
+- Enforced immutability of seeded system roles in role update/delete API.
+
+- This keeps dynamic non-system roles possible while protecting core RBAC assumptions.
+
+
+
+Key file:
+
+- [rbac/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/rbac/views.py)
+
+
+
+3. **Missing queue/list endpoints for frontend workflows**
+- Added complaint review queue endpoint:
+
+ - `GET /api/v1/cases/complaints/queue/`
+
+ - Cadet gets cadet states, officer gets officer state, admin can view broader scope.
+
+ - Added ordering/filter query support.
+
+- Added tip review queue endpoint:
+
+ - `GET /api/v1/tips/review-queue/`
+
+ - Officer: `pending_officer`, Detective: `pending_detective` with assignment-aware filtering,
+Admin: all.
+
+- Added admin user search/list endpoint:
+
+ - `GET /api/v1/users/`
+
+ - Filters: `username`, `national_id`, `role`.
+
+
+
+Key files:
+
+- [cases/urls.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/urls.py)
+
+- [cases/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/views.py)
+
+- [rewards/urls.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/rewards/urls.py)
+
+- [rewards/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/rewards/views.py)
+
+- [accounts/urls.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/accounts/urls.py)
+
+- [accounts/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/accounts/views.py)
+
+- [accounts/serializers.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/accounts/serializers.py)
+4. **Case-scoped authorization hardening**
+
+- Added missing case-access checks in:
+
+ - Sergeant suspect decision.
+
+ - Interrogation scoring/decisions (detective/sergeant/captain/chief paths).
+
+ - Trial case report access.
+
+- Earlier pass already hardened board and evidence object-level access.
+
+
+
+Key files:
+
+- [cases/policies.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/policies.py)
+
+- [suspects/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/suspects/views.py)
+
+- [interrogations/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/interrogations/views.py)
+
+- [trials/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/trials/views.py)
+
+- [board/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/board/views.py)
+
+- [evidence/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/evidence/views.py)
+
+
+
+5. **Board security: cross-case evidence reference prevention**
+
+- Enforced that `EVIDENCE_REF` board items can only point to evidence from the same case.
+
+- Applied check in both create and patch flows.
+
+
+
+Key file:
+
+- [board/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/board/views.py)
+6. **Evidence description requirement**
+
+- Made evidence description required at API input level (`required=True`, non-blank).
+
+
+
+Key file:
+
+- [evidence/serializers.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/evidence/serializers.py)
+
+
+
+7. **Deterministic reward amount storage**
+
+- Added `RewardCode.amount` field and migration.
+
+- Reward amount computed at acceptance time and persisted.
+
+- Reward lookup now returns persisted amount (no recompute drift).
+
+
+
+Key files:
+
+- [rewards/models.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/rewards/models.py)
+
+- [rewards/migrations/0002_rewardcode_amount.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/rewards/migrations/0002_rewardcode_amount.py)
+
+- [rewards/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/rewards/views.py)
+
+- [rewards/serializers.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/rewards/serializers.py)
+
+
+
+8. **Payment validation tightened**
+
+- `person_id` is now required.
+
+- Added person-case linkage check via `WantedRecord`.
+
+- Bail/fine rules now validate case level and person status in case context.
+Key files:
+
+- [payments/serializers.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/payments/serializers.py)
+
+- [payments/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/payments/views.py)
+
+
+
+9. **Workflow improvements from earlier pass**
+
+- Added case assignment management endpoints.
+
+- Added complainant review status model fields and migration.
+
+- Enforced complaint workflow constraints (required messages, pre-approval checks).
+
+- Added detective notification on suspect decision.
+
+
+
+Key files:
+
+- [cases/models.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/models.py)
+
+-
+[cases/migrations/0002_casecomplainant_verification_fields.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/migrations/0002_casecomplainant_verification_fiel
+ds.py)
+
+- [cases/views.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/views.py)
+
+- [cases/serializers.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/serializers.py)
+
+
+
+---
+
+
+
+**Testing and Validation Performed**
+- `python manage.py check` passed.
+
+- `python manage.py spectacular --file schema.yaml` passed with 0 errors.
+
+- `python manage.py makemigrations --check --dry-run` passed for code changes.
+
+- `pytest` could not execute to completion in this environment because PostgreSQL at
+`localhost:5433` was unavailable.
+
+
+
+Test files updated:
+
+- [accounts/tests/test_auth.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/accounts/tests/test_auth.py)
+
+- [cases/tests/test_flows.py](g:/ImportantFolders/Sharif/term
+9/WP/Project/LA_Noire/backend/apps/cases/tests/test_flows.py)
+
+
+
+---
+
+
+
+**NPM (for report section)**
+
+`npm` is the Node Package Manager used by your frontend (`frontend/`) to:
+
+- install dependencies (`npm install` / `npm ci`)
+
+- run scripts (`npm run dev`, `npm run build`, `npm run test`, `npm run lint`)
+
+- maintain lockfile reproducibility (`package-lock.json`)
+
+
+
+Your frontend scripts (from `frontend/package.json`) include:
+
+- `dev` (Vite dev server)
+
+- `build` (TypeScript build + Vite build)
+
+- `lint` (ESLint)
+
+- `test` / `test:watch` / `coverage` (Vitest)
+Recommended npm conventions for report:
+
+- commit `package-lock.json` for deterministic installs
+
+- use `npm ci` in CI/CD for reproducibility
+
+- keep scripts consistent and environment-agnostic
+
+- separate `dependencies` vs `devDependencies`
+
+- run `lint + test + build` before merge/release
+
+
+
+---
+
+
+
+**Development Conventions I Followed**
+
+- Small, logically grouped commits with clear messages.
+
+- No destructive git operations; no unrelated changes reverted.
+
+- Added tests where behavior changed.
+
+- Kept API error payload shape consistent (`error.code/message/details`).
+
+- Preferred explicit serializers/annotations over implicit behavior for schema reliability.
+
+- Preserved existing endpoint behavior unless requirement-driven change was needed.
+
+- Avoided committing generated cache artifacts.
+
+
+
+---
+
+
+
+**Checkpoint 1 Evaluation Criteria Status (practical view)**
+
+Likely satisfied or strongly improved:
+
+- model completeness and workflow alignment
+
+- RBAC enforcement (with immutable system role protection)
+- endpoint breadth for workflows (cases/evidence/reward/payment/stats/reporting)
+
+- OpenAPI/Swagger reliability
+
+- payment return page and Dockerized backend structure
+
+- tests count and multi-app coverage
+
+
+
+Remaining caveat for report:
+
+- Full runtime test pass is pending a running PostgreSQL service (`localhost:5433`) in your local
+environment/CI.
+**Project Summary**
+
+- Delivered a full React + TypeScript frontend for the Police Department system and integrated it
+with the existing Django REST backend and Docker stack.
+
+- Implemented all major checkpoint pages/workflows: main page, auth, modular dashboard,
+detective board, most wanted, case/complaint status, reporting, evidence, custom admin panel,
+notifications, tips/rewards, and payments.
+
+- Added frontend tests, production build pipeline, Dockerized frontend (Nginx), and updated run
+documentation for stable startup.
+
+
+
+**Frontend Architecture**
+
+- Built a modular app shell with route-level guards and role-based rendering in
+`g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\frontend\src\app\router.tsx`.
+
+- Added centralized providers and query client config in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\app\AppProviders.tsx` and `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\app\queryClient.ts`.
+
+- Added typed API contracts in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\api\types.ts`.
+
+- Implemented Axios API client with auth header injection and 401 handling in
+`g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\frontend\src\api\client.ts`.
+
+- Implemented persisted auth state (tokens/user/roles) with bootstrap on refresh in
+`g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\frontend\src\features\auth\authStore.ts`
+and `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\features\auth\AuthBootstrap.tsx`.
+
+- Built a reusable UI layer (`Button`, `Card`, `Skeleton`, `ErrorAlert`, `EmptyState`) in
+`g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\frontend\src\components\ui`.
+
+
+
+**Implemented Functional Modules**
+
+- Main page with live stats (`/stats/overview`) in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\HomePage.tsx`.
+
+- Login/registration and profile-role initialization in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\AuthPage.tsx`.
+- Role-based modular dashboard in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\DashboardPage.tsx` and
+`g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\features\dashboard\modules.ts`.
+
+- Case & complaint workflow page (submission, queue review, resubmission, status transitions,
+complainant review, assignments, crime-scene approval) in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\CasesPage.tsx`.
+
+- Evidence registration/review across all evidence types in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\EvidencePage.tsx`.
+
+- Detective board with drag/drop graph, red links, item/connection CRUD, and image export in
+`g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\DetectiveBoardPage.tsx`.
+
+- Most wanted public page in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\MostWantedPage.tsx`.
+
+- Reporting + trial decision page in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\ReportsPage.tsx`.
+
+- Custom admin panel for dynamic RBAC role/user management in
+`g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\AdminPanelPage.tsx`.
+
+- Notifications inbox/read flow in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\NotificationsPage.tsx`.
+
+- Tips/reward queue + reward lookup in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\TipsRewardsPage.tsx`.
+
+- Bail/fine payment flow (create + callback simulation) in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\PaymentsPage.tsx`.
+
+
+
+**NPM Packages Used (and Why)**
+
+- Core framework/tooling: `react`, `react-dom`, `vite`, `typescript`, `@vitejs/plugin-react`.
+
+- Routing: `react-router-dom` for public/protected/role-constrained routes.
+
+- Server state: `@tanstack/react-query` for query caching, mutation handling, and invalidation.
+
+- HTTP client: `axios` for API calls with interceptor-based auth logic.
+- Local state: `zustand` for persisted auth/session state.
+
+- Forms/validation: `react-hook-form`, `zod`, `@hookform/resolvers` (available for structured
+validation workflows).
+
+- UI/utilities: `clsx` (class composition), `dayjs` (date formatting), `lucide-react` (icons).
+
+- Detective board: `reactflow` (graph editor), `html-to-image` (board export).
+
+- Testing: `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`,
+`@testing-library/jest-dom`, `@vitest/coverage-v8`.
+
+- Linting: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`,
+`eslint-plugin-react-refresh`.
+
+
+
+**Fixes and Hardening Work**
+
+- Fixed Docker backend build reliability by removing the failing apt toolchain step from
+`g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\backend\Dockerfile`.
+
+- Added frontend Docker image (Node build + Nginx runtime) in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\Dockerfile`.
+
+- Added Nginx reverse-proxy config for `/api` in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\nginx.conf`.
+
+- Integrated frontend service into compose in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\docker-compose.yml`.
+
+- Updated docs to reflect working startup flow (`docker compose build --no-cache web` then
+`docker compose up`) in `g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\README.md`
+and `g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\frontend\README.md`.
+
+- Added `.env` example for frontend API base URL in `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\.env.example`.
+
+- Additional backend-side hardening commits in history included workflow access enforcement
+and expanded Swagger coverage (`22efd67`, `3bb278c`, `01ec0d2`).
+
+
+
+**Testing and Verification**
+
+- Added and passed frontend tests across utilities, auth/dashboard logic, and main page
+rendering:
+ - `g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\frontend\src\utils\roles.test.ts`
+
+ - `g:\ImportantFolders\Sharif\term 9\WP\Project\LA_Noire\frontend\src\utils\format.test.ts`
+
+ - `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\features\dashboard\modules.test.ts`
+
+ - `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\AuthPage.test.tsx`
+
+ - `g:\ImportantFolders\Sharif\term
+9\WP\Project\LA_Noire\frontend\src\pages\HomePage.test.tsx`
+
+- Build pipeline validated with `npm run build`; test pipeline validated with `npm test`.
+
+
+
+**Development Conventions Used**
+
+- Feature-oriented structure:
+
+  - `pages/` for screens, `*Api.ts` for endpoint adapters, `components/ui` for reusable primitives,
+`features/*` for domain-level state/rules.
+
+- Strong typing:
+
+ - API DTOs centralized in `api/types.ts`; endpoint functions return typed data.
+
+- Clean API abstraction:
+
+ - No direct Axios calls from random components; each domain has dedicated API module.
+
+- Predictable state handling:
+
+ - React Query for server state and invalidation; Zustand only for auth/session.
+
+- RBAC by design:
+
+ - Navigation and route guards driven by backend role slugs.
+
+- UX consistency:
+
+ - Standardized error rendering, empty states, and loading skeletons.
+
+- Docker-first execution:
+
+ - Frontend and backend runnable together from compose with documented commands.
+- Incremental delivery:
+
+ - Work split into many sequential commits to preserve development traceability for
+evaluation/reporting.
+
+
+
+**Report-Friendly Commit Narrative (Condensed)**
+
+- Frontend scaffold and base architecture.
+
+- Design system + role-aware navigation.
+
+- Core business modules (cases, evidence, board, reports, admin).
+
+- Supporting workflows (notifications, rewards, payments).
+
+- Tests and Dockerization.
+
+- Runtime reliability/documentation fixes.
+
+
+
+If you want, I can convert this into a formal “Project Report” format with sections like
+`Objectives`, `System Design`, `Implementation Details`, `Testing Strategy`, `Deployment`,
+`Challenges & Fixes`, and `Future Improvements`.
+
+
+
+
+​
+

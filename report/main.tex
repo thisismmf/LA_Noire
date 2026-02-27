@@ -1,0 +1,215 @@
+\documentclass[12pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\geometry{margin=1in}
+\onehalfspacing
+
+\definecolor{codegray}{gray}{0.30}
+\definecolor{codebg}{rgb}{0.97,0.97,0.97}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codegray},
+  columns=fullflexible,
+  breaklines=true,
+  showstringspaces=false,
+}
+
+\title{Police Department Web System (\textit{LA\_Noire})\\Final Project Report}
+\author{
+  Kiarash Joolaei (Student ID: 400100949)\\
+  Mohammad Mahdi Farhadi (Student ID: 99105634)
+}
+\date{February 27, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This report documents the implementation of a web-based police department system inspired by \textit{L.A. Noire}. It summarizes team responsibilities, conventions, project management, key system entities, selected frontend NPM packages, and the role of AI-assisted development. All claims are grounded in the repository state and code structure (branch \texttt{front}, snapshot commit \texttt{3001e5a} dated 2026-02-27).
+\end{abstract}
+
+\tableofcontents
+
+\section{Project Overview}
+\subsection{Goal}
+The project digitizes end-to-end police workflows: case formation (complaints and crime-scene reporting), evidence registration and review, detective reasoning via a ``detective board'', suspect handling and most-wanted ranking, interrogation approvals, trial verdict entry, tips/rewards, notifications, and an optional payment flow for bail/fines.
+
+\subsection{Technology Stack}
+The implementation is a containerized three-tier system:
+(1) Django REST Framework (backend) with PostgreSQL storage, and
+(2) a React (Vite) + TypeScript frontend.
+Docker Compose orchestrates the database, backend, and frontend containers (see \path{docker-compose.yml}, \path{backend/Dockerfile}, \path{frontend/Dockerfile}).
+
+\section{Evaluation Criteria and Evidence}
+The project rubric emphasizes meeting documented requirements, maintainable engineering practices, correct REST behavior, access control, and complete Swagger/OpenAPI documentation with meaningful examples.
+In addition, a minimum commit count per checkpoint is required.
+
+\subsection{Repository Snapshot and Commit Frequency}
+At the snapshot used for this report (2026-02-27), the branch contains 52 commits.
+The contributions are visible through git history and author shortlog:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Author (git)} & \textbf{Commits} & \textbf{Notes} \\
+\midrule
+\texttt{KiaJJ} & 30 & Integration, frontend, backend hardening, docs/tests \\
+\texttt{Mohammad Mahdi} & 21 & Backend core structure and initial features \\
+\texttt{thisismmf} & 1 & Initial commit identity \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This comfortably exceeds the ``15 commits per checkpoint'' requirement while preserving small, focused changesets.
+
+\subsection{Checklist Alignment (High-Level)}
+The repository addresses key checklist items via:
+RBAC (\path{backend/apps/rbac/}), error normalization (\path{backend/police\_portal/api\_exceptions.py}),
+Swagger generation and customization (\path{backend/police\_portal/schema.py}),
+workflow-focused domain apps (\path{backend/apps/}), and automated tests across multiple apps (\path{backend/apps/*/tests/}).
+
+\section{Team Responsibilities and Contributions}
+\subsection{Mohammad Mahdi Farhadi}
+Mohammad built the foundation that enabled incremental development:
+(a) Docker packaging and runtime orchestration (e.g., early Docker/Compose setup in commit \texttt{889cb45}),
+(b) core backend scaffolding (Django project structure and the initial domain decomposition into apps), and
+(c) baseline operational documentation and repository hygiene.
+His contributions are concentrated in the initial backend feature set on 2026-02-20, visible as ``feat(...)'' commits across multiple domain apps.
+
+\subsection{Kiarash Joolaei}
+Kiarash focused on closing gaps between requirements and implementation and on delivering the frontend:
+(a) backend hardening to unblock and correctly support the UI (e.g., making the homepage statistics endpoint public when required),
+(b) Swagger/OpenAPI completeness improvements and regression tests to prevent documentation drift, and
+(c) frontend pages, role-based dashboard modules, workflow integration, and frontend tests.
+These contributions appear in the later integration commits (2026-02-26 to 2026-02-27), including many \texttt{feat(frontend)} commits and backend access-control fixes.
+
+\section{Project Management Approach}
+We decomposed work into tasks that mirror the project description workflows and the evaluation checklist, then distributed ownership by area:
+Mohammad established the platform and backend baseline; Kiarash iterated on correctness, documentation quality, and frontend integration.
+Acceptance criteria were derived directly from the rubric (role-based flows, clean error handling, complete Swagger, and test coverage).
+
+\section{Development Conventions}
+\subsection{Commit Message Format}
+Commits follow a Conventional Commits style: \texttt{type(scope): short description}.
+Scopes are used when changes are clearly bounded (e.g., \texttt{frontend}, \texttt{backend}, \texttt{docker}); otherwise a plain \texttt{type:} prefix is used.
+
+\subsection{Naming, Structure, and Error Handling}
+The backend follows Django/DRF conventions and keeps each domain app self-contained with \path{models.py}, \path{serializers.py}, \path{views.py}, \path{urls.py}, and \path{tests/}.
+Python uses standard naming (PascalCase classes, snake\_case functions).
+The frontend uses \path{frontend/src/pages/*Page.tsx} for pages and colocates API clients and utilities for each workflow module.
+
+To keep frontend error handling predictable, backend errors are normalized into an envelope format via \path{backend/police\_portal/api\_exceptions.py}, and OpenAPI descriptions explicitly document that envelope.
+
+\subsection{Swagger/OpenAPI as a First-Class Deliverable}
+Swagger documentation is generated with \texttt{drf-spectacular} and intentionally made rubric-compliant with per-endpoint descriptions and domain-specific examples. Schema customization is centralized in \path{backend/police\_portal/schema.py}, and a regression test suite (\path{backend/apps/stats/tests/test\_stats\_docs.py}) validates that operations include descriptions and non-generic JSON examples.
+
+\section{Key System Entities and Justification}
+The entity model is the backbone of the system and was designed to reflect the workflow narrative from the project description.
+This section maps directly to Django models under \path{backend/apps/*/models.py}.
+
+\subsection{Identity and Access}
+\textbf{Role} and \textbf{UserRole} (\path{backend/apps/rbac/models.py}) exist to support dynamic roles (add/remove/modify roles without code changes) and to enforce role-based access control across endpoints.
+Actors are tracked throughout workflows via the custom \textbf{User} model (\path{backend/apps/accounts/models.py}), enabling auditability (who created, reviewed, approved, or rejected).
+
+\subsection{Case Formation and Lifecycle}
+\textbf{Complaint} and \textbf{Case} (\path{backend/apps/cases/models.py}) represent the two case-formation sources required by the spec (complaint-based and crime-scene-based). They store status, timestamps, and the actors who created or reviewed the data. \textbf{CaseComplainant} exists to support multiple complainants with cadet verification states, and \textbf{CaseAssignment} exists to enforce case-scoped responsibility (e.g., only the assigned detective can perform certain operations).
+
+\subsection{Evidence}
+The abstract \textbf{Evidence} model provides a uniform wrapper (title, description, registrant, timestamps) required for consistent listing and reporting. Typed evidence models (witness statements, medical, vehicle, identity-document evidence) exist because each type carries unique constraints and validation requirements (implemented in evidence serializers under \path{backend/apps/evidence/serializers.py}).
+
+\subsection{Detective Reasoning and Link Analysis}
+\textbf{DetectiveBoard}, \textbf{BoardItem}, and \textbf{BoardConnection} (\path{backend/apps/board/models.py}) exist to implement the detective board: free positioning, evidence references, notes, and red-line connections between items. The frontend renders the board using graph UI primitives and supports export-to-image behavior.
+
+\subsection{Suspects, Interrogations, and Trials}
+\textbf{Person}, \textbf{SuspectCandidate}, and \textbf{WantedRecord} (\path{backend/apps/suspects/models.py}) separate identity from case-specific suspicion and from wanted status. The most-wanted ranking and reward formula is computed deterministically in \path{backend/apps/suspects/utils.py}.
+\textbf{Interrogation} (\path{backend/apps/interrogations/models.py}) captures detective and sergeant scoring and the captain/chief approval chain.
+\textbf{Trial} (\path{backend/apps/trials/models.py}) stores judge decisions and punishment details, backed by reporting endpoints that expose a case dossier.
+
+\subsection{Cross-Cutting Workflow Entities}
+\textbf{Notification} provides required workflow notifications.
+\textbf{Tip}, \textbf{TipAttachment}, and \textbf{RewardCode} model the tips/rewards queue and redemption flow.
+\textbf{Payment} supports the optional bail/fine gateway flow and return URL behavior.
+These are implemented in \path{backend/apps/notifications/models.py}, \path{backend/apps/rewards/models.py}, and \path{backend/apps/payments/models.py}.
+
+\section{NPM Packages Used (Up to Six) and Justification}
+The frontend intentionally uses the following six packages (see \path{frontend/package.json}) because they directly support rubric-relevant behaviors and complex workflows:
+
+\subsection{\texttt{react-router-dom}}
+Provides role-aware routing and nested layouts for many workflow pages, including guarded routes for authenticated-only modules.
+
+\subsection{\texttt{@tanstack/react-query}} 
+Manages server state (queues, details, mutations) with caching, deduplication, and consistent loading/error behavior, reducing accidental over-fetching during complex flows.
+
+\subsection{\texttt{axios}}
+Implements a consistent HTTP client and supports interceptors for JWT headers and centralized error handling. API clients are implemented around it (e.g., \path{frontend/src/api/client.ts}).
+
+\subsection{\texttt{zustand}}
+Provides lightweight global state for authentication/session persistence and cross-page state without heavyweight boilerplate.
+
+\subsection{\texttt{react-hook-form} + \texttt{zod} (\texttt{@hookform/resolvers})}
+Supports complex, validated forms (complaint submission, evidence creation, and admin role/user changes) with typed schema validation and ergonomic form state.
+
+\subsection{\texttt{reactflow}}
+Enables node/edge interaction primitives that map cleanly onto the detective board workflow (dragging items and drawing connections).
+
+\section{AI-Generated Code: Examples and Evaluation}
+We used AI assistance primarily to accelerate boilerplate-heavy or highly repetitive tasks. We then relied on manual review and automated tests to keep behavior requirements-aligned.
+
+\subsection{Examples of AI-Assisted Code in the Repository}
+\paragraph{Example 1: Public homepage statistics endpoint.}
+The frontend homepage requires anonymous access to aggregated counters. The backend’s secure default is authenticated access, so this endpoint must explicitly allow anonymous requests.
+In \path{backend/apps/stats/views.py}, \texttt{StatsOverviewView} overrides permissions:
+
+\begin{lstlisting}[language=Python]
+class StatsOverviewView(APIView):
+    permission_classes = [AllowAny]
+\end{lstlisting}
+
+\paragraph{Example 2: Domain-specific OpenAPI examples.}
+Generic placeholder examples do not meet the ``complete Swagger'' rubric. We therefore curated domain-specific request/response examples in \path{backend/police\_portal/schema.py} and attached them systematically during schema generation.
+
+\begin{lstlisting}[language=Python]
+SERIALIZER_REQUEST_EXAMPLES = {
+    "apps.accounts.serializers.LoginSerializer": {
+        "identifier": "officer@example.com",
+        "password": "Pass1234!",
+    },
+}
+\end{lstlisting}
+
+\paragraph{Example 3: Regression tests to prevent documentation drift.}
+To ensure AI-assisted docs remain accurate, \path{backend/apps/stats/tests/test\_stats\_docs.py} asserts that operations have descriptions and JSON examples, and that examples are non-generic.
+
+\subsection{Strengths and Weaknesses of AI in Front-End Development}
+In this project, AI was strongest at accelerating repetitive UI scaffolding (page shells and forms), suggesting mutation/query patterns, and generating initial testing ideas. Its main weakness was correctly inferring nuanced workflow rules (role-scoped visibility and multi-step approvals); those required careful manual alignment with the requirements and backend enforcement.
+
+\subsection{Strengths and Weaknesses of AI in Back-End Development}
+AI was effective for drafting DRF boilerplate, serializer/view wiring, and documentation/test scaffolding. However, it tended to miss subtle authorization and state-machine constraints unless explicitly guided by the workflow narrative. For this reason, we encoded access policies and added tests that enforce both behavior and documentation correctness.
+
+\section{Requirement Analysis: Initial vs Final}
+\subsection{Initial Analysis}
+Early design decisions prioritized security and maintainability:
+default authenticated access (with explicit \texttt{AllowAny} only where required), a dynamic role system, and explicit workflow state enums. These aligned with the rubric’s focus on access control and clean entity design.
+
+\subsection{Final Analysis and Adjustments}
+During frontend integration, we refined requirements interpretation at the boundaries where the UI expects public access or where role membership alone is insufficient.
+For example, public pages (homepage statistics and public most-wanted views) explicitly override the authenticated default, and sensitive operations require case-scoped assignment checks rather than broad role access.
+We also treated Swagger as a graded deliverable by attaching domain-specific examples and validating them through regression tests.
+
+\section{Conclusion}
+The final system provides a role-based implementation of the specified police workflows with an emphasis on clean domain separation, enforceable access policies, reliable documentation, and test-backed correctness. The division of responsibilities enabled rapid progress: a strong backend/Docker foundation followed by requirement-driven hardening and full frontend integration.
+
+\end{document}
+

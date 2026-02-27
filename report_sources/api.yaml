@@ -1,0 +1,5446 @@
+openapi: 3.0.3
+info:
+  title: Police Department Web System API
+  version: 1.0.0
+  description: Checkpoint 1 backend API
+paths:
+  /api/v1/auth/login/:
+    post:
+      operationId: v1_auth_login_create
+      description: |-
+        Authenticate with username, email, phone number, or national ID and return a JWT token pair.
+
+        Authentication: No JWT required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+            examples:
+              RequestExample:
+                value:
+                  identifier: officer@example.com
+                  password: Pass1234!
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    tokens:
+                      refresh: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
+                      access: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
+                    user:
+                      id: 1
+                      username: detective_01
+                      email: detective@example.com
+                      phone: '5551234567'
+                      national_id: A123456789
+                      first_name: Cole
+                      last_name: Phelps
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/auth/me/:
+    get:
+      operationId: v1_auth_me_retrieve
+      description: |-
+        Return the authenticated user profile together with their resolved role slugs.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithRoles'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 1
+                    username: detective_01
+                    email: detective@example.com
+                    phone: '5551234567'
+                    national_id: A123456789
+                    first_name: Cole
+                    last_name: Phelps
+                    roles:
+                    - detective
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/auth/register/:
+    post:
+      operationId: v1_auth_register_create
+      description: |-
+        Create a base user account that can later receive additional roles from a system administrator.
+
+        Authentication: No JWT required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+            examples:
+              RequestExample:
+                value:
+                  username: new_user_01
+                  email: new_user_01@example.com
+                  phone: '5551234567'
+                  national_id: A123456789
+                  first_name: Cole
+                  last_name: Phelps
+                  password: Pass1234!
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 1
+                    username: detective_01
+                    email: officer@example.com
+                    phone: '5551234567'
+                    national_id: A123456789
+                    first_name: Cole
+                    last_name: Phelps
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: v1_auth_token_refresh_create
+      description: |-
+        Exchange a valid refresh token for a new access token.
+
+        Authentication: No JWT required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+            examples:
+              RequestExample:
+                value:
+                  refresh: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
+                summary: Request Example
+              RefreshRequest:
+                value:
+                  refresh: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
+                summary: Refresh Request
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    access: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+                RefreshResponse:
+                  value:
+                    access: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
+                  summary: Refresh Response
+          description: ''
+  /api/v1/board/connections/:
+    post:
+      operationId: v1_board_connections_create
+      description: |-
+        Create a red-line connection between two board items on the same detective board.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardConnection'
+            examples:
+              RequestExample:
+                value:
+                  from_item: 4
+                  to_item: 5
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BoardConnection'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BoardConnection'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardConnection'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 9
+                    from_item: 4
+                    to_item: 5
+                    created_at: '2026-02-26T16:30:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/board/connections/{id}/:
+    delete:
+      operationId: v1_board_connections_destroy
+      description: |-
+        Remove a red-line connection between detective board items.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/board/items/{id}/:
+    patch:
+      operationId: v1_board_items_partial_update
+      description: |-
+        Update a board item's content, position, or linked evidence reference.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBoardItem'
+            examples:
+              RequestExample:
+                value:
+                  item_type: NOTE
+                  title: Timeline
+                  text: Suspect vehicle appears on camera at 21:10 and exits at 21:18.
+                  x: 320
+                  y: 180
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBoardItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBoardItem'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardItem'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 4
+                    item_type: NOTE
+                    evidence: null
+                    title: Timeline
+                    text: Suspect vehicle appears on camera at 21:10 and exits at
+                      21:18.
+                    x: 320
+                    y: 180
+                    updated_at: '2026-02-26T16:25:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    delete:
+      operationId: v1_board_items_destroy
+      description: |-
+        Remove a board item from the detective board.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/cases/:
+    get:
+      operationId: v1_cases_list
+      description: |-
+        List cases accessible to the current user through assignments, ownership, or administrator access.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Case'
+              examples:
+                SuccessResponse:
+                  value:
+                  - id: 21
+                    title: Warehouse assault
+                    description: Officers found signs of struggle and blood traces
+                      near the loading dock.
+                    crime_level: 1
+                    location: Harbor warehouse district
+                    incident_datetime: '2026-02-26T09:55:00Z'
+                    status: active
+                    source_type: crime_scene
+                    created_at: '2026-02-26T16:00:00Z'
+                    complainants: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/assignments/:
+    get:
+      operationId: v1_cases_assignments_list
+      description: |-
+        List current case assignments so managers can review the active investigation team.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CaseAssignment'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - id: 6
+                      case: 21
+                      user: 7
+                      role_in_case: detective
+                      assigned_at: '2026-02-26T16:20:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    post:
+      operationId: v1_cases_assignments_create
+      description: |-
+        Assign a user to a case role when their system role satisfies the assignment rules.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseAssignmentUpsert'
+            examples:
+              RequestExample:
+                value:
+                  user_id: 7
+                  role_in_case: detective
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CaseAssignmentUpsert'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CaseAssignmentUpsert'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseAssignment'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 6
+                    case: 21
+                    user: 7
+                    role_in_case: detective
+                    assigned_at: '2026-02-26T16:20:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseAssignment'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 6
+                    case: 21
+                    user: 7
+                    role_in_case: detective
+                    assigned_at: '2026-02-26T16:20:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/assignments/{id}/:
+    delete:
+      operationId: v1_cases_assignments_destroy
+      description: |-
+        Remove a specific assignment from a case.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/cases/{case_id}/board/:
+    get:
+      operationId: v1_cases_board_retrieve
+      description: |-
+        Return the detective board for a case, including all notes, evidence references, and connections.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectiveBoard'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 2
+                    case: 21
+                    items:
+                    - id: 4
+                      item_type: NOTE
+                      evidence: null
+                      title: Timeline
+                      text: Suspect vehicle appears on camera at 21:10 and exits at
+                        21:18.
+                      x: 320
+                      y: 180
+                      updated_at: '2026-02-26T16:25:00Z'
+                    connections:
+                    - id: 9
+                      from_item: 4
+                      to_item: 5
+                      created_at: '2026-02-26T16:30:00Z'
+                    updated_at: '2026-02-26T16:35:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/board/items/:
+    post:
+      operationId: v1_cases_board_items_create
+      description: |-
+        Create a new board item such as a note or evidence reference on a detective board.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardItem'
+            examples:
+              RequestExample:
+                value:
+                  item_type: NOTE
+                  title: Timeline
+                  text: Suspect vehicle appears on camera at 21:10 and exits at 21:18.
+                  x: 320
+                  y: 180
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BoardItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BoardItem'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardItem'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 4
+                    item_type: NOTE
+                    evidence: null
+                    title: Timeline
+                    text: Suspect vehicle appears on camera at 21:10 and exits at
+                      21:18.
+                    x: 320
+                    y: 180
+                    updated_at: '2026-02-26T16:25:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/crime-scene/approve/:
+    post:
+      operationId: cases_crime_scene_approve_by_case
+      description: |-
+        Approve or reject a pending crime-scene case according to the required superior rank.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: police-officer, sergeant, captain, police-chief
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrimeSceneApprove'
+            examples:
+              RequestExample:
+                value:
+                  approve: true
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CrimeSceneApprove'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CrimeSceneApprove'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrimeSceneActionResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    case:
+                      id: 21
+                      title: Warehouse assault
+                      description: Officers found signs of struggle and blood traces
+                        near the loading dock.
+                      crime_level: 1
+                      location: Harbor warehouse district
+                      incident_datetime: '2026-02-26T09:55:00Z'
+                      status: pending_superior
+                      source_type: crime_scene
+                      created_at: '2026-02-26T16:00:00Z'
+                      complainants: []
+                    crime_scene_report_id: 8
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/evidence/:
+    get:
+      operationId: v1_cases_evidence_list
+      description: |-
+        List evidence for a case and optionally filter by evidence type.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, police-officer, patrol-officer, captain, police-chief, coroner, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Evidence'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - id: 3
+                      case: 21
+                      title: Dock worker testimony
+                      description: Statement from the worker who saw the suspect vehicle
+                        leave the scene.
+                      evidence_type: witness_statement
+                      created_at: '2026-02-26T16:25:00Z'
+                      created_by: 7
+                      witness_statement:
+                        transcription: I saw a dark sedan leaving the warehouse right
+                          after the shouting stopped.
+                        media:
+                        - id: 2
+                          file: statement-audio.mp3
+                          media_type: audio
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    post:
+      operationId: v1_cases_evidence_create
+      description: |-
+        Register new evidence for an accessible case, including witness, medical, vehicle, and document variants.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, police-officer, patrol-officer, captain, police-chief, coroner, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvidenceCreate'
+            examples:
+              RequestExample:
+                value:
+                  evidence_type: witness_statement
+                  title: Dock worker testimony
+                  description: Statement from the worker who saw the suspect vehicle
+                    leave the scene.
+                  witness_statement:
+                    transcription: I saw a dark sedan leaving the warehouse right
+                      after the shouting stopped.
+                    media:
+                    - file: statement-audio.mp3
+                      media_type: audio
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EvidenceCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EvidenceCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evidence'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 3
+                    case: 21
+                    title: Dock worker testimony
+                    description: Statement from the worker who saw the suspect vehicle
+                      leave the scene.
+                    evidence_type: witness_statement
+                    created_at: '2026-02-26T16:25:00Z'
+                    created_by: 7
+                    witness_statement:
+                      transcription: I saw a dark sedan leaving the warehouse right
+                        after the shouting stopped.
+                      media:
+                      - id: 2
+                        file: statement-audio.mp3
+                        media_type: audio
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/interrogations/:
+    post:
+      operationId: v1_cases_interrogations_create
+      description: |-
+        Create an interrogation record for a suspect in a case assigned to the requesting detective.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterrogationCreate'
+            examples:
+              RequestExample:
+                value:
+                  suspect_id: 1
+                  detective_score: 7
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterrogationCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterrogationCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interrogation'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    case: 21
+                    suspect: 2
+                    detective_score: 7
+                    sergeant_score: 8
+                    captain_decision: approve
+                    captain_notes: Evidence supports moving forward with prosecution.
+                    chief_decision: null
+                    chief_notes: ''
+                    status: approved
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/report/:
+    get:
+      operationId: v1_cases_report_retrieve
+      description: |-
+        Return the complete judge-facing case report with evidence, assignments, reviews, and interrogation history.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: judge, captain, police-chief
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseReportResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    case:
+                      id: 21
+                      title: Warehouse assault
+                      status: active
+                      crime_level: 1
+                    complaint: null
+                    crime_scene_report:
+                      id: 8
+                      status: approved
+                      scene_datetime: '2026-02-26T10:15:00Z'
+                      reported_by: 5
+                      approved_by: 6
+                      approved_at: '2026-02-26T11:00:00Z'
+                      witnesses:
+                      - full_name: Evelyn Shaw
+                        phone: '5552003344'
+                        national_id: ES-4401
+                    reviews: []
+                    evidence:
+                    - id: 3
+                      title: Dock worker testimony
+                      evidence_type: witness_statement
+                    suspects:
+                    - id: 14
+                      status: approved
+                      rationale: Vehicle footage and witness testimony place the suspect
+                        at the scene.
+                    interrogations:
+                    - id: 5
+                      detective_score: 7
+                      sergeant_score: 8
+                      status: approved
+                    assignments:
+                    - user:
+                        id: 7
+                        username: detective_01
+                        first_name: Cole
+                        last_name: Phelps
+                        national_id: A123456789
+                        roles:
+                        - detective
+                      role_in_case: detective
+                      assigned_at: '2026-02-26T16:20:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/suspects/{suspect_id}/sergeant-decision/:
+    post:
+      operationId: v1_cases_suspects_sergeant_decision_create
+      description: |-
+        Approve or reject a suspect candidate and notify the proposing detective.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: sergeant
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: suspect_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SergeantDecision'
+            examples:
+              RequestExample:
+                value:
+                  approve: true
+                  message: Evidence supports issuing an arrest order.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SergeantDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SergeantDecision'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuspectCandidate'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 14
+                    case: 21
+                    person:
+                      id: 2
+                      full_name: John Doe
+                      national_id: JD-3001
+                      phone: '5553131313'
+                      photo: /media/suspects/john-doe.jpg
+                      notes: Seen near the warehouse entrance on CCTV.
+                    rationale: Vehicle footage and witness testimony place the suspect
+                      at the scene.
+                    status: approved
+                    sergeant_message: Evidence supports issuing an arrest order.
+                    decided_at: '2026-02-26T18:30:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/suspects/propose/:
+    post:
+      operationId: v1_cases_suspects_propose_create
+      description: |-
+        Submit one or more suspect candidates for a case together with the detective rationale.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuspectProposal'
+            examples:
+              RequestExample:
+                value:
+                  suspects:
+                  - full_name: John Doe
+                    national_id: JD-3001
+                    phone: '5553131313'
+                    notes: Seen near the warehouse entrance on CCTV.
+                  rationale: Vehicle footage and witness testimony place the suspect
+                    at the scene.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SuspectProposal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SuspectProposal'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuspectCandidate'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - id: 14
+                      case: 21
+                      person:
+                        id: 2
+                        full_name: John Doe
+                        national_id: JD-3001
+                        phone: '5553131313'
+                        photo: /media/suspects/john-doe.jpg
+                        notes: Seen near the warehouse entrance on CCTV.
+                      rationale: Vehicle footage and witness testimony place the suspect
+                        at the scene.
+                      status: approved
+                      sergeant_message: Evidence supports issuing an arrest order.
+                      decided_at: '2026-02-26T18:30:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{case_id}/trial/decision/:
+    post:
+      operationId: v1_cases_trial_decision_create
+      description: |-
+        Record the judge's final verdict and punishment details for a case.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: judge
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: case_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrialDecision'
+            examples:
+              RequestExample:
+                value:
+                  verdict: guilty
+                  punishment_title: Prison sentence
+                  punishment_description: Five years imprisonment and post-release
+                    supervision.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TrialDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TrialDecision'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trial'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 3
+                    case: 21
+                    judge: 9
+                    verdict: guilty
+                    punishment_title: Prison sentence
+                    punishment_description: Five years imprisonment and post-release
+                      supervision.
+                    decided_at: '2026-02-26T20:00:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{id}/add-complainant/:
+    post:
+      operationId: v1_cases_add_complainant_create
+      description: |-
+        Attach a new complainant record to an existing case for cadet verification.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: cadet
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddComplainant'
+            examples:
+              RequestExample:
+                value:
+                  full_name: Robert Miller
+                  phone: '5558881122'
+                  national_id: RM-0099
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddComplainant'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddComplainant'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 21
+                    title: Warehouse assault
+                    description: Officers found signs of struggle and blood traces
+                      near the loading dock.
+                    crime_level: 1
+                    location: Harbor warehouse district
+                    incident_datetime: '2026-02-26T09:55:00Z'
+                    status: active
+                    source_type: crime_scene
+                    created_at: '2026-02-26T16:00:00Z'
+                    complainants: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/{id}/:
+    get:
+      operationId: v1_cases_retrieve
+      description: |-
+        Retrieve a case or update allowed fields, including validated status transitions for police roles.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 21
+                    title: Warehouse assault
+                    description: Officers found signs of struggle and blood traces
+                      near the loading dock.
+                    crime_level: 1
+                    location: Harbor warehouse district
+                    incident_datetime: '2026-02-26T09:55:00Z'
+                    status: active
+                    source_type: crime_scene
+                    created_at: '2026-02-26T16:00:00Z'
+                    complainants: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    put:
+      operationId: v1_cases_update
+      description: |-
+        Retrieve a case or update allowed fields, including validated status transitions for police roles.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Case'
+            examples:
+              RequestExample:
+                value:
+                  title: Armed robbery investigation
+                  description: Detailed operational note for investigators.
+                  crime_level: 1
+                  location: Downtown Los Angeles
+                  incident_datetime: '2026-02-26T10:30:00Z'
+                  status: pending_superior
+                  source_type: complaint
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Case'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Case'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 21
+                    title: Warehouse assault
+                    description: Officers found signs of struggle and blood traces
+                      near the loading dock.
+                    crime_level: 1
+                    location: Harbor warehouse district
+                    incident_datetime: '2026-02-26T09:55:00Z'
+                    status: active
+                    source_type: crime_scene
+                    created_at: '2026-02-26T16:00:00Z'
+                    complainants: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    patch:
+      operationId: v1_cases_partial_update
+      description: |-
+        Retrieve a case or update allowed fields, including validated status transitions for police roles.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCase'
+            examples:
+              RequestExample:
+                value:
+                  title: Armed robbery investigation
+                  description: Detailed operational note for investigators.
+                  crime_level: 1
+                  location: Downtown Los Angeles
+                  incident_datetime: '2026-02-26T10:30:00Z'
+                  status: pending_superior
+                  source_type: complaint
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCase'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 21
+                    title: Warehouse assault
+                    description: Officers found signs of struggle and blood traces
+                      near the loading dock.
+                    crime_level: 1
+                    location: Harbor warehouse district
+                    incident_datetime: '2026-02-26T09:55:00Z'
+                    status: active
+                    source_type: crime_scene
+                    created_at: '2026-02-26T16:00:00Z'
+                    complainants: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/complainants/{id}/review/:
+    post:
+      operationId: v1_cases_complainants_review_create
+      description: |-
+        Approve or reject an individual complainant attached to a case or complaint.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: cadet
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplainantReview'
+            examples:
+              RequestExample:
+                value:
+                  action: reject
+                  message: Submitted contact details could not be verified.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ComplainantReview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ComplainantReview'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseComplainant'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 1
+                    full_name: John Doe
+                    phone: '5551234567'
+                    national_id: A123456789
+                    is_verified: true
+                    verification_status: pending
+                    review_message: example
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/complaints/:
+    post:
+      operationId: v1_cases_complaints_create
+      description: |-
+        Submit a new complaint that enters the cadet and police review workflow for case formation.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: complainant, base-user
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Complaint'
+            examples:
+              RequestExample:
+                value:
+                  title: Home burglary on Olive Street
+                  description: Front door forced open and jewelry missing from the
+                    bedroom.
+                  crime_level: 2
+                  location: Olive Street, Los Angeles
+                  incident_datetime: '2026-02-25T22:10:00Z'
+                  complainants:
+                  - full_name: Mary Hudson
+                    phone: '5551112233'
+                    national_id: MH-0001
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Complaint'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Complaint'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Complaint'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 12
+                    title: Home burglary on Olive Street
+                    description: Front door forced open and jewelry missing from the
+                      bedroom.
+                    crime_level: 2
+                    location: Olive Street, Los Angeles
+                    incident_datetime: '2026-02-25T22:10:00Z'
+                    status: pending_cadet
+                    strike_count: 0
+                    last_message: ''
+                    complainants:
+                    - id: 4
+                      full_name: Mary Hudson
+                      phone: '5551112233'
+                      national_id: MH-0001
+                      is_verified: false
+                      verification_status: pending
+                      review_message: ''
+                    created_at: '2026-02-26T16:00:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/complaints/{id}/:
+    get:
+      operationId: v1_cases_complaints_retrieve
+      description: |-
+        Retrieve a complaint visible to the current user or reviewing police staff.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Complaint'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 12
+                    title: Home burglary on Olive Street
+                    description: Front door forced open and jewelry missing from the
+                      bedroom.
+                    crime_level: 2
+                    location: Olive Street, Los Angeles
+                    incident_datetime: '2026-02-25T22:10:00Z'
+                    status: pending_cadet
+                    strike_count: 0
+                    last_message: ''
+                    complainants:
+                    - id: 4
+                      full_name: Mary Hudson
+                      phone: '5551112233'
+                      national_id: MH-0001
+                      is_verified: false
+                      verification_status: pending
+                      review_message: ''
+                    created_at: '2026-02-26T16:00:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/complaints/{id}/cadet-review/:
+    post:
+      operationId: v1_cases_complaints_cadet_review_create
+      description: |-
+        Approve a complaint for officer review or return it to the complainant with a correction message.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: cadet
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadetReview'
+            examples:
+              RequestExample:
+                value:
+                  action: return
+                  message: Please add a valid national ID for the complainant.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CadetReview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CadetReview'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Complaint'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 12
+                    title: Home burglary on Olive Street
+                    description: Front door forced open and jewelry missing from the
+                      bedroom.
+                    crime_level: 2
+                    location: Olive Street, Los Angeles
+                    incident_datetime: '2026-02-25T22:10:00Z'
+                    status: pending_cadet
+                    strike_count: 0
+                    last_message: ''
+                    complainants:
+                    - id: 4
+                      full_name: Mary Hudson
+                      phone: '5551112233'
+                      national_id: MH-0001
+                      is_verified: false
+                      verification_status: pending
+                      review_message: ''
+                    created_at: '2026-02-26T16:00:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/complaints/{id}/officer-review/:
+    post:
+      operationId: v1_cases_complaints_officer_review_create
+      description: |-
+        Approve a complaint into a case or return it to the cadet for re-evaluation.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: police-officer
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficerReview'
+            examples:
+              RequestExample:
+                value:
+                  action: approve
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OfficerReview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OfficerReview'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Complaint'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 12
+                    title: Home burglary on Olive Street
+                    description: Front door forced open and jewelry missing from the
+                      bedroom.
+                    crime_level: 2
+                    location: Olive Street, Los Angeles
+                    incident_datetime: '2026-02-25T22:10:00Z'
+                    status: pending_cadet
+                    strike_count: 0
+                    last_message: ''
+                    complainants:
+                    - id: 4
+                      full_name: Mary Hudson
+                      phone: '5551112233'
+                      national_id: MH-0001
+                      is_verified: false
+                      verification_status: pending
+                      review_message: ''
+                    created_at: '2026-02-26T16:00:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/complaints/{id}/resubmit/:
+    post:
+      operationId: v1_cases_complaints_resubmit_create
+      description: |-
+        Resubmit a returned complaint and invalidate it after the third failed submission.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplaintResubmit'
+            examples:
+              RequestExample:
+                value:
+                  description: Updated complaint with corrected witness and timeline
+                    details.
+                  location: Olive Street, Los Angeles
+                  incident_datetime: '2026-02-25T22:10:00Z'
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ComplaintResubmit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ComplaintResubmit'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Complaint'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 12
+                    title: Home burglary on Olive Street
+                    description: Front door forced open and jewelry missing from the
+                      bedroom.
+                    crime_level: 2
+                    location: Olive Street, Los Angeles
+                    incident_datetime: '2026-02-25T22:10:00Z'
+                    status: pending_cadet
+                    strike_count: 0
+                    last_message: ''
+                    complainants:
+                    - id: 4
+                      full_name: Mary Hudson
+                      phone: '5551112233'
+                      national_id: MH-0001
+                      is_verified: false
+                      verification_status: pending
+                      review_message: ''
+                    created_at: '2026-02-26T16:00:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/complaints/queue/:
+    get:
+      operationId: v1_cases_complaints_queue_list
+      description: |-
+        Return the complaint queue for cadets, officers, or system administrators.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: cadet, police-officer, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Use `created_at` or `-created_at`
+      - in: query
+        name: status
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Complaint'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - id: 12
+                      title: Home burglary on Olive Street
+                      description: Front door forced open and jewelry missing from
+                        the bedroom.
+                      crime_level: 2
+                      location: Olive Street, Los Angeles
+                      incident_datetime: '2026-02-25T22:10:00Z'
+                      status: pending_cadet
+                      strike_count: 0
+                      last_message: ''
+                      complainants:
+                      - id: 4
+                        full_name: Mary Hudson
+                        phone: '5551112233'
+                        national_id: MH-0001
+                        is_verified: false
+                        verification_status: pending
+                        review_message: ''
+                      created_at: '2026-02-26T16:00:00Z'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/cases/crime-scene/:
+    post:
+      operationId: v1_cases_crime_scene_create
+      description: |-
+        Create a new case directly from a field crime-scene report and its witness records.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: police-officer, patrol-officer, detective, sergeant, captain, police-chief
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrimeSceneReport'
+            examples:
+              RequestExample:
+                value:
+                  title: Warehouse assault
+                  description: Officers found signs of struggle and blood traces near
+                    the loading dock.
+                  crime_level: 1
+                  location: Harbor warehouse district
+                  incident_datetime: '2026-02-26T09:55:00Z'
+                  scene_datetime: '2026-02-26T10:15:00Z'
+                  witnesses:
+                  - full_name: Evelyn Shaw
+                    phone: '5552003344'
+                    national_id: ES-4401
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CrimeSceneReport'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CrimeSceneReport'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrimeSceneActionResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    case:
+                      id: 21
+                      title: Warehouse assault
+                      description: Officers found signs of struggle and blood traces
+                        near the loading dock.
+                      crime_level: 1
+                      location: Harbor warehouse district
+                      incident_datetime: '2026-02-26T09:55:00Z'
+                      status: pending_superior
+                      source_type: crime_scene
+                      created_at: '2026-02-26T16:00:00Z'
+                      complainants: []
+                    crime_scene_report_id: 8
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/evidence/{id}/:
+    get:
+      operationId: v1_evidence_retrieve
+      description: |-
+        Retrieve a single evidence record if the requester can access the linked case.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, police-officer, patrol-officer, captain, police-chief, coroner, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evidence'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 3
+                    case: 21
+                    title: Dock worker testimony
+                    description: Statement from the worker who saw the suspect vehicle
+                      leave the scene.
+                    evidence_type: witness_statement
+                    created_at: '2026-02-26T16:25:00Z'
+                    created_by: 7
+                    witness_statement:
+                      transcription: I saw a dark sedan leaving the warehouse right
+                        after the shouting stopped.
+                      media:
+                      - id: 2
+                        file: statement-audio.mp3
+                        media_type: audio
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    patch:
+      operationId: v1_evidence_partial_update
+      description: |-
+        Update an evidence record while enforcing subtype-specific validation and role restrictions.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, police-officer, patrol-officer, captain, police-chief, coroner, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEvidence'
+            examples:
+              RequestExample:
+                value:
+                  case: 1
+                  title: Armed robbery investigation
+                  description: Detailed operational note for investigators.
+                  evidence_type: witness_statement
+                  witness_statement:
+                    transcription: Witness states the suspect fled in a dark sedan.
+                    media:
+                    - file: example
+                      media_type: audio
+                  medical:
+                    forensic_result: Fingerprint match pending confirmation.
+                    identity_db_result: Record matched in identity database.
+                    status: pending
+                    images:
+                    - image: example
+                  vehicle:
+                    model: Buick Eight
+                    color: Black
+                    license_plate: LAPD-1024
+                    serial_number: VIN123456789
+                  identity_document:
+                    owner_full_name: John Doe
+                    data:
+                      key: value
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEvidence'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEvidence'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evidence'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 3
+                    case: 21
+                    title: Dock worker testimony
+                    description: Statement from the worker who saw the suspect vehicle
+                      leave the scene.
+                    evidence_type: witness_statement
+                    created_at: '2026-02-26T16:25:00Z'
+                    created_by: 7
+                    witness_statement:
+                      transcription: I saw a dark sedan leaving the warehouse right
+                        after the shouting stopped.
+                      media:
+                      - id: 2
+                        file: statement-audio.mp3
+                        media_type: audio
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    delete:
+      operationId: v1_evidence_destroy
+      description: |-
+        Delete an evidence record if the requester has elevated case-management privileges.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective, sergeant, police-officer, patrol-officer, captain, police-chief, coroner, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/interrogations/{id}/captain-decision/:
+    post:
+      operationId: v1_interrogations_captain_decision_create
+      description: |-
+        Record the captain decision and escalate critical cases to chief approval when required.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: captain
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaptainDecision'
+            examples:
+              RequestExample:
+                value:
+                  decision: approve
+                  notes: Forward to prosecution based on aligned evidence and interview
+                    scores.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CaptainDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CaptainDecision'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interrogation'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    case: 21
+                    suspect: 2
+                    detective_score: 7
+                    sergeant_score: 8
+                    captain_decision: approve
+                    captain_notes: Evidence supports moving forward with prosecution.
+                    chief_decision: null
+                    chief_notes: ''
+                    status: approved
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/interrogations/{id}/chief-decision/:
+    post:
+      operationId: v1_interrogations_chief_decision_create
+      description: |-
+        Record the chief of police decision for a critical-crime interrogation.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: police-chief
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChiefDecision'
+            examples:
+              RequestExample:
+                value:
+                  decision: approve
+                  notes: Critical case approved for judiciary referral.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChiefDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChiefDecision'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interrogation'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    case: 21
+                    suspect: 2
+                    detective_score: 7
+                    sergeant_score: 8
+                    captain_decision: approve
+                    captain_notes: Evidence supports moving forward with prosecution.
+                    chief_decision: null
+                    chief_notes: ''
+                    status: approved
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/interrogations/{id}/detective-score/:
+    patch:
+      operationId: v1_interrogations_detective_score_partial_update
+      description: |-
+        Record or revise the detective guilt score for an interrogation awaiting detective input.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedScore'
+            examples:
+              RequestExample:
+                value:
+                  score: 8
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedScore'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedScore'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interrogation'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    case: 21
+                    suspect: 2
+                    detective_score: 7
+                    sergeant_score: 8
+                    captain_decision: approve
+                    captain_notes: Evidence supports moving forward with prosecution.
+                    chief_decision: null
+                    chief_notes: ''
+                    status: approved
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/interrogations/{id}/sergeant-score/:
+    patch:
+      operationId: v1_interrogations_sergeant_score_partial_update
+      description: |-
+        Record the sergeant guilt score and advance the interrogation to captain review.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: sergeant
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedScore'
+            examples:
+              RequestExample:
+                value:
+                  score: 8
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedScore'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedScore'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interrogation'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    case: 21
+                    suspect: 2
+                    detective_score: 7
+                    sergeant_score: 8
+                    captain_decision: approve
+                    captain_notes: Evidence supports moving forward with prosecution.
+                    chief_decision: null
+                    chief_notes: ''
+                    status: approved
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/notifications/:
+    get:
+      operationId: v1_notifications_list
+      description: |-
+        List notifications for the authenticated user in reverse chronological order.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+              examples:
+                SuccessResponse:
+                  value:
+                  - id: 11
+                    case: 21
+                    type: new_evidence
+                    payload:
+                      evidence_id: 3
+                      evidence_type: medical
+                    created_at: '2026-02-26T16:40:00Z'
+                    read_at: null
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/notifications/{id}/read/:
+    post:
+      operationId: v1_notifications_read_create
+      description: |-
+        Mark a user-owned notification as read and return the updated notification.
+
+        Authentication: Bearer JWT access token required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 11
+                    case: 21
+                    type: new_evidence
+                    payload:
+                      evidence_id: 3
+                      evidence_type: medical
+                    created_at: '2026-02-26T16:40:00Z'
+                    read_at: null
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+        '404':
+          description: No response body
+  /api/v1/payments/callback/:
+    post:
+      operationId: v1_payments_callback_create
+      description: |-
+        Process the gateway callback, verify the signature, and persist the final payment status.
+
+        Authentication: No JWT required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCallback'
+            examples:
+              RequestExample:
+                value:
+                  payment_id: 1
+                  status: success
+                  signature: signed-payload-example
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaymentCallback'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaymentCallback'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 1
+                    payer: null
+                    case: 21
+                    person: 2
+                    amount: 1000
+                    type: bail
+                    status: pending
+                    gateway_ref: GW-20260226-0001
+                    created_at: '2026-02-26T17:30:00Z'
+                    verified_at: null
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/payments/create/:
+    post:
+      operationId: v1_payments_create_create
+      description: |-
+        Create a bail or fine payment request and return the gateway redirect payload.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: sergeant
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+            examples:
+              RequestExample:
+                value:
+                  case_id: 1
+                  person_id: 2
+                  amount: 1000
+                  type: bail
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCreateResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    payment:
+                      id: 1
+                      payer: null
+                      case: 21
+                      person: 2
+                      amount: 1000
+                      type: bail
+                      status: pending
+                      gateway_ref: GW-20260226-0001
+                      created_at: '2026-02-26T17:30:00Z'
+                      verified_at: null
+                    redirect_url: /api/v1/payments/return/?payment_id=1&status=pending
+                    signature: signed-payload-example
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/payments/return/:
+    get:
+      operationId: v1_payments_return_retrieve
+      description: |-
+        Render the payment gateway return page that shows the current payment status to the user.
+
+        Authentication: No JWT required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+              examples:
+                SuccessResponse:
+                  value: example
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/public/most-wanted/:
+    get:
+      operationId: v1_public_most_wanted_list
+      description: |-
+        Return the public most-wanted ranking visible to all users.
+
+        Authentication: No JWT required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MostWanted'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - person:
+                        id: 2
+                        full_name: John Doe
+                        national_id: JD-3001
+                        phone: '5553131313'
+                        photo: /media/suspects/john-doe.jpg
+                        notes: Seen near the warehouse entrance on CCTV.
+                      days_wanted: 42
+                      crime_degree: 3
+                      ranking_score: 126
+                      reward_amount: 2520000000
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/rbac/roles/:
+    get:
+      operationId: v1_rbac_roles_list
+      description: |-
+        List custom and system roles or create a new role without changing source code.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+              examples:
+                SuccessResponse:
+                  value:
+                  - id: 5
+                    name: Detective
+                    slug: detective
+                    description: Investigates active cases, evidence, and suspect
+                      link analysis.
+                    is_system: true
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    post:
+      operationId: v1_rbac_roles_create
+      description: |-
+        List custom and system roles or create a new role without changing source code.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+            examples:
+              RequestExample:
+                value:
+                  name: Detective
+                  slug: detective
+                  description: Investigates active cases, evidence, and suspect link
+                    analysis.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Role'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Role'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    name: Detective
+                    slug: detective
+                    description: Investigates active cases, evidence, and suspect
+                      link analysis.
+                    is_system: true
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/rbac/roles/{id}/:
+    get:
+      operationId: v1_rbac_roles_retrieve
+      description: |-
+        Retrieve, update, or delete a role while protecting immutable built-in system roles.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    name: Detective
+                    slug: detective
+                    description: Investigates active cases, evidence, and suspect
+                      link analysis.
+                    is_system: true
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    put:
+      operationId: v1_rbac_roles_update
+      description: |-
+        Retrieve, update, or delete a role while protecting immutable built-in system roles.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+            examples:
+              RequestExample:
+                value:
+                  name: Detective
+                  slug: detective
+                  description: Investigates active cases, evidence, and suspect link
+                    analysis.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Role'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Role'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    name: Detective
+                    slug: detective
+                    description: Investigates active cases, evidence, and suspect
+                      link analysis.
+                    is_system: true
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    patch:
+      operationId: v1_rbac_roles_partial_update
+      description: |-
+        Retrieve, update, or delete a role while protecting immutable built-in system roles.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRole'
+            examples:
+              RequestExample:
+                value:
+                  name: Detective
+                  slug: detective
+                  description: Investigates active cases, evidence, and suspect link
+                    analysis.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRole'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRole'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    name: Detective
+                    slug: detective
+                    description: Investigates active cases, evidence, and suspect
+                      link analysis.
+                    is_system: true
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    delete:
+      operationId: v1_rbac_roles_destroy
+      description: |-
+        Retrieve, update, or delete a role while protecting immutable built-in system roles.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/rbac/users/{user_id}/assign-role/:
+    post:
+      operationId: v1_rbac_users_assign_role_create
+      description: |-
+        Assign an existing role to a user by role ID or role slug.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+            examples:
+              RequestExample:
+                value:
+                  role_slug: detective
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 5
+                    name: Detective
+                    slug: detective
+                    description: Investigates active cases, evidence, and suspect
+                      link analysis.
+                    is_system: true
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/rbac/users/{user_id}/remove-role/:
+    post:
+      operationId: v1_rbac_users_remove_role_create
+      description: |-
+        Remove an assigned role from a user by role ID or role slug.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+            examples:
+              RequestExample:
+                value:
+                  role_slug: detective
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/rewards/lookup/:
+    get:
+      operationId: v1_rewards_lookup_retrieve
+      description: |-
+        Look up an issued reward by national ID and reward code for in-person payout verification.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: cadet, police-officer, patrol-officer, detective, sergeant, captain, police-chief, coroner, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardLookupResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    user:
+                      id: 15
+                      username: citizen_tipster
+                      national_id: CI-1001
+                    tip:
+                      id: 17
+                      content: The suspect is hiding near the harbor warehouse after
+                        midnight.
+                      status: accepted
+                    reward:
+                      code: RW-1024
+                      issued_at: '2026-02-26T17:45:00Z'
+                      redeemed_at: null
+                      status: issued
+                      amount: 2520000000
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/stats/overview/:
+    get:
+      operationId: v1_stats_overview_retrieve
+      description: |-
+        Return public homepage counters for resolved cases, active cases, and organization employees.
+
+        Authentication: No JWT required.
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsOverview'
+              examples:
+                SuccessResponse:
+                  value:
+                    total_solved_cases: 1
+                    total_employees: 15
+                    active_cases: 4
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/suspects/{person_id}/status/:
+    post:
+      operationId: v1_suspects_status_create
+      description: |-
+        Update a suspect's status within a case, such as wanted, arrested, or cleared.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: police-officer, sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: person_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuspectStatusUpdate'
+            examples:
+              RequestExample:
+                value:
+                  case_id: 1
+                  status: arrested
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SuspectStatusUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SuspectStatusUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 1
+                    full_name: John Doe
+                    national_id: A123456789
+                    phone: '5551234567'
+                    photo: /media/suspects/john-doe.jpg
+                    notes: 'Known alias: Black Dahlia lead.'
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/suspects/most-wanted/:
+    get:
+      operationId: v1_suspects_most_wanted_list
+      description: |-
+        Return the police-facing most-wanted ranking for authorized staff.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: police-officer, sergeant, captain, police-chief, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MostWanted'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - person:
+                        id: 2
+                        full_name: John Doe
+                        national_id: JD-3001
+                        phone: '5553131313'
+                        photo: /media/suspects/john-doe.jpg
+                        notes: Seen near the warehouse entrance on CCTV.
+                      days_wanted: 42
+                      crime_degree: 3
+                      ranking_score: 126
+                      reward_amount: 2520000000
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/tips/:
+    get:
+      operationId: v1_tips_list
+      description: |-
+        List tips submitted by the current base user and allow them to submit a new tip with optional attachments.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: base-user
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tip'
+              examples:
+                SuccessResponse:
+                  value:
+                  - id: 17
+                    case: 21
+                    person: 2
+                    content: The suspect is hiding near the harbor warehouse after
+                      midnight.
+                    status: pending_officer
+                    created_at: '2026-02-26T17:10:00Z'
+                    attachments: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+    post:
+      operationId: v1_tips_create
+      description: |-
+        List tips submitted by the current base user and allow them to submit a new tip with optional attachments.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: base-user
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tip'
+            examples:
+              RequestExample:
+                value:
+                  case: 1
+                  person: 2
+                  content: The suspect is hiding near the harbor warehouse after midnight.
+                  attachments: []
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Tip'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Tip'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tip'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 17
+                    case: 21
+                    person: 2
+                    content: The suspect is hiding near the harbor warehouse after
+                      midnight.
+                    status: pending_officer
+                    created_at: '2026-02-26T17:10:00Z'
+                    attachments: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/tips/{id}/detective-review/:
+    post:
+      operationId: v1_tips_detective_review_create
+      description: |-
+        Perform the detective review, issue a reward code on acceptance, and notify the submitting user.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: detective
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TipDetectiveReview'
+            examples:
+              RequestExample:
+                value:
+                  approve: true
+                  message: Tip matched existing evidence and was operationally useful.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TipDetectiveReview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TipDetectiveReview'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tip'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 17
+                    case: 21
+                    person: 2
+                    content: The suspect is hiding near the harbor warehouse after
+                      midnight.
+                    status: pending_officer
+                    created_at: '2026-02-26T17:10:00Z'
+                    attachments: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/tips/{id}/officer-review/:
+    post:
+      operationId: v1_tips_officer_review_create
+      description: |-
+        Perform the first-stage police review for a submitted tip.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: police-officer
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TipOfficerReview'
+            examples:
+              RequestExample:
+                value:
+                  approve: true
+                  message: Credible tip forwarded to the assigned detective.
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TipOfficerReview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TipOfficerReview'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tip'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 17
+                    case: 21
+                    person: 2
+                    content: The suspect is hiding near the harbor warehouse after
+                      midnight.
+                    status: pending_officer
+                    created_at: '2026-02-26T17:10:00Z'
+                    attachments: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                    error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/tips/review-queue/:
+    get:
+      operationId: v1_tips_review_queue_list
+      description: |-
+        Return the appropriate tip review queue for police officers, detectives, or system administrators.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: police-officer, detective, system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tip'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - id: 17
+                      case: 21
+                      person: 2
+                      content: The suspect is hiding near the harbor warehouse after
+                        midnight.
+                      status: pending_officer
+                      created_at: '2026-02-26T17:10:00Z'
+                      attachments: []
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+  /api/v1/users/:
+    get:
+      operationId: v1_users_list
+      description: |-
+        List users for system administrators with optional filters by username, national ID, and role.
+
+        Authentication: Bearer JWT access token required.
+
+        Required roles: system-administrator
+
+        Errors use the envelope `{error: {code, message, details}}`.
+      parameters:
+      - in: query
+        name: national_id
+        schema:
+          type: string
+      - in: query
+        name: role
+        schema:
+          type: string
+      - in: query
+        name: username
+        schema:
+          type: string
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserWithRoles'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - id: 1
+                      username: detective_01
+                      email: detective@example.com
+                      phone: '5551234567'
+                      national_id: A123456789
+                      first_name: Cole
+                      last_name: Phelps
+                      roles:
+                      - detective
+                  summary: Success Response
+                ErrorResponse:
+                  value:
+                  - error:
+                      code: validation_error
+                      message: Readable message
+                      details:
+                        field:
+                        - This field is required.
+                  summary: Error Response
+          description: ''
+components:
+  schemas:
+    Action55fEnum:
+      enum:
+      - approve
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `reject` - reject
+    AddComplainant:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 20
+        national_id:
+          type: string
+          maxLength: 20
+      required:
+      - full_name
+      - national_id
+      - phone
+    AssignRole:
+      type: object
+      properties:
+        role_id:
+          type: integer
+        role_slug:
+          type: string
+          pattern: ^[-a-zA-Z0-9_]+$
+    BoardConnection:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        from_item:
+          type: integer
+        to_item:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - from_item
+      - id
+      - to_item
+    BoardItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        item_type:
+          $ref: '#/components/schemas/ItemTypeEnum'
+        evidence:
+          type: integer
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        text:
+          type: string
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - item_type
+      - updated_at
+    CadetReview:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/CadetReviewActionEnum'
+        message:
+          type: string
+      required:
+      - action
+    CadetReviewActionEnum:
+      enum:
+      - approve
+      - return
+      type: string
+      description: |-
+        * `approve` - approve
+        * `return` - return
+    CaptainDecision:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        notes:
+          type: string
+      required:
+      - decision
+    Case:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        crime_level:
+          allOf:
+          - $ref: '#/components/schemas/CrimeLevelEnum'
+          minimum: -2147483648
+          maximum: 2147483647
+        location:
+          type: string
+          maxLength: 255
+        incident_datetime:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CaseStatusEnum'
+        source_type:
+          $ref: '#/components/schemas/SourceTypeEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        complainants:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseComplainant'
+          readOnly: true
+      required:
+      - complainants
+      - created_at
+      - crime_level
+      - description
+      - id
+      - location
+      - source_type
+      - title
+    CaseAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        user:
+          type: integer
+        role_in_case:
+          $ref: '#/components/schemas/CaseAssignmentRoleInCaseEnum'
+        assigned_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_at
+      - case
+      - id
+      - role_in_case
+      - user
+    CaseAssignmentRoleInCaseEnum:
+      enum:
+      - detective
+      - officer
+      - sergeant
+      type: string
+      description: |-
+        * `detective` - Detective
+        * `officer` - Officer
+        * `sergeant` - Sergeant
+    CaseAssignmentUpsert:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        role_in_case:
+          $ref: '#/components/schemas/CaseAssignmentUpsertRoleInCaseEnum'
+      required:
+      - role_in_case
+      - user_id
+    CaseAssignmentUpsertRoleInCaseEnum:
+      enum:
+      - detective
+      - officer
+      - sergeant
+      type: string
+      description: |-
+        * `detective` - detective
+        * `officer` - officer
+        * `sergeant` - sergeant
+    CaseComplainant:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 20
+        national_id:
+          type: string
+          maxLength: 20
+        is_verified:
+          type: boolean
+          readOnly: true
+        verification_status:
+          allOf:
+          - $ref: '#/components/schemas/VerificationStatusEnum'
+          readOnly: true
+        review_message:
+          type: string
+          readOnly: true
+      required:
+      - full_name
+      - id
+      - is_verified
+      - national_id
+      - phone
+      - review_message
+      - verification_status
+    CaseReportResponse:
+      type: object
+      properties:
+        case:
+          type: object
+          additionalProperties: {}
+        complaint:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        crime_scene_report:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        reviews:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        evidence:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        suspects:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        interrogations:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        assignments:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - assignments
+      - case
+      - complaint
+      - crime_scene_report
+      - evidence
+      - interrogations
+      - reviews
+      - suspects
+    CaseStatusEnum:
+      enum:
+      - pending_superior
+      - active
+      - closed_solved
+      - closed_unsolved
+      - voided
+      type: string
+      description: |-
+        * `pending_superior` - Pending Superior Approval
+        * `active` - Active
+        * `closed_solved` - Closed (Solved)
+        * `closed_unsolved` - Closed (Unsolved)
+        * `voided` - Voided
+    ChiefDecision:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        notes:
+          type: string
+      required:
+      - decision
+    ComplainantReview:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/Action55fEnum'
+        message:
+          type: string
+      required:
+      - action
+    Complaint:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        crime_level:
+          allOf:
+          - $ref: '#/components/schemas/CrimeLevelEnum'
+          minimum: -2147483648
+          maximum: 2147483647
+        location:
+          type: string
+          maxLength: 255
+        incident_datetime:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ComplaintStatusEnum'
+          readOnly: true
+        strike_count:
+          type: integer
+          readOnly: true
+        last_message:
+          type: string
+          readOnly: true
+        complainants:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseComplainant'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - crime_level
+      - description
+      - id
+      - last_message
+      - location
+      - status
+      - strike_count
+      - title
+    ComplaintResubmit:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        crime_level:
+          type: integer
+        location:
+          type: string
+        incident_datetime:
+          type: string
+          format: date-time
+          nullable: true
+    ComplaintStatusEnum:
+      enum:
+      - pending_cadet
+      - returned_to_complainant
+      - pending_officer
+      - returned_to_cadet
+      - approved
+      - voided
+      type: string
+      description: |-
+        * `pending_cadet` - Pending Cadet Review
+        * `returned_to_complainant` - Returned to Complainant
+        * `pending_officer` - Pending Officer Review
+        * `returned_to_cadet` - Returned to Cadet
+        * `approved` - Approved
+        * `voided` - Voided
+    CrimeLevelEnum:
+      enum:
+      - 1
+      - 2
+      - 3
+      - 4
+      type: integer
+      description: |-
+        * `1` - Level 3
+        * `2` - Level 2
+        * `3` - Level 1
+        * `4` - Critical
+    CrimeSceneActionResponse:
+      type: object
+      properties:
+        case:
+          type: object
+          additionalProperties: {}
+        crime_scene_report_id:
+          type: integer
+      required:
+      - case
+      - crime_scene_report_id
+    CrimeSceneApprove:
+      type: object
+      properties:
+        approve:
+          type: boolean
+      required:
+      - approve
+    CrimeSceneReport:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        crime_level:
+          type: integer
+        location:
+          type: string
+        incident_datetime:
+          type: string
+          format: date-time
+          nullable: true
+        scene_datetime:
+          type: string
+          format: date-time
+        witnesses:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrimeSceneWitness'
+      required:
+      - crime_level
+      - description
+      - location
+      - scene_datetime
+      - title
+      - witnesses
+    CrimeSceneWitness:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 20
+        national_id:
+          type: string
+          maxLength: 20
+      required:
+      - national_id
+      - phone
+    DecisionEnum:
+      enum:
+      - approve
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `reject` - reject
+    DetectiveBoard:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardItem'
+          readOnly: true
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardConnection'
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - case
+      - connections
+      - id
+      - items
+      - updated_at
+    Evidence:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        evidence_type:
+          $ref: '#/components/schemas/EvidenceTypeEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        witness_statement:
+          $ref: '#/components/schemas/WitnessStatementEvidence'
+        medical:
+          $ref: '#/components/schemas/MedicalEvidence'
+        vehicle:
+          $ref: '#/components/schemas/VehicleEvidence'
+        identity_document:
+          $ref: '#/components/schemas/IdentityDocumentEvidence'
+      required:
+      - case
+      - created_at
+      - created_by
+      - evidence_type
+      - id
+      - title
+    EvidenceCreate:
+      type: object
+      properties:
+        evidence_type:
+          $ref: '#/components/schemas/EvidenceTypeEnum'
+        title:
+          type: string
+        description:
+          type: string
+        witness_statement:
+          $ref: '#/components/schemas/WitnessStatementEvidence'
+        medical:
+          $ref: '#/components/schemas/MedicalEvidence'
+        vehicle:
+          $ref: '#/components/schemas/VehicleEvidence'
+        identity_document:
+          $ref: '#/components/schemas/IdentityDocumentEvidence'
+      required:
+      - description
+      - evidence_type
+      - title
+    EvidenceMedia:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        file:
+          type: string
+          format: uri
+        media_type:
+          type: string
+          maxLength: 50
+      required:
+      - file
+      - id
+    EvidenceTypeEnum:
+      enum:
+      - witness_statement
+      - medical
+      - vehicle
+      - identity_document
+      - other
+      type: string
+      description: |-
+        * `witness_statement` - Witness Statement
+        * `medical` - Medical
+        * `vehicle` - Vehicle
+        * `identity_document` - Identity Document
+        * `other` - Other
+    IdentityDocumentEvidence:
+      type: object
+      properties:
+        owner_full_name:
+          type: string
+          maxLength: 255
+        data: {}
+      required:
+      - owner_full_name
+    Interrogation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        suspect:
+          type: integer
+        detective_score:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+        sergeant_score:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+        captain_decision:
+          type: string
+          maxLength: 50
+        captain_notes:
+          type: string
+        chief_decision:
+          type: string
+          maxLength: 50
+        chief_notes:
+          type: string
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InterrogationStatusEnum'
+          readOnly: true
+      required:
+      - case
+      - id
+      - status
+      - suspect
+    InterrogationCreate:
+      type: object
+      properties:
+        suspect_id:
+          type: integer
+        detective_score:
+          type: integer
+      required:
+      - suspect_id
+    InterrogationStatusEnum:
+      enum:
+      - pending_detective
+      - pending_sergeant
+      - pending_captain
+      - pending_chief
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `pending_detective` - Pending Detective
+        * `pending_sergeant` - Pending Sergeant
+        * `pending_captain` - Pending Captain
+        * `pending_chief` - Pending Chief
+        * `approved` - Approved
+        * `rejected` - Rejected
+    ItemTypeEnum:
+      enum:
+      - EVIDENCE_REF
+      - NOTE
+      type: string
+      description: |-
+        * `EVIDENCE_REF` - Evidence Ref
+        * `NOTE` - Note
+    Login:
+      type: object
+      properties:
+        identifier:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - identifier
+      - password
+    LoginResponse:
+      type: object
+      properties:
+        tokens:
+          allOf:
+          - $ref: '#/components/schemas/TokenPair'
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+      required:
+      - tokens
+      - user
+    MedicalEvidence:
+      type: object
+      properties:
+        forensic_result:
+          type: string
+        identity_db_result:
+          type: string
+        status:
+          type: string
+          maxLength: 50
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicalEvidenceImage'
+    MedicalEvidenceImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        image:
+          type: string
+          format: uri
+      required:
+      - id
+      - image
+    MostWanted:
+      type: object
+      properties:
+        person:
+          $ref: '#/components/schemas/Person'
+        days_wanted:
+          type: integer
+        crime_degree:
+          type: integer
+        ranking_score:
+          type: integer
+        reward_amount:
+          type: integer
+      required:
+      - crime_degree
+      - days_wanted
+      - person
+      - ranking_score
+      - reward_amount
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+          readOnly: true
+          nullable: true
+        type:
+          type: string
+          readOnly: true
+        payload:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        read_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - case
+      - created_at
+      - id
+      - payload
+      - read_at
+      - type
+    OfficerReview:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/OfficerReviewActionEnum'
+        message:
+          type: string
+      required:
+      - action
+    OfficerReviewActionEnum:
+      enum:
+      - approve
+      - return_to_cadet
+      type: string
+      description: |-
+        * `approve` - approve
+        * `return_to_cadet` - return_to_cadet
+    PatchedBoardItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        item_type:
+          $ref: '#/components/schemas/ItemTypeEnum'
+        evidence:
+          type: integer
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        text:
+          type: string
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedCase:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        crime_level:
+          allOf:
+          - $ref: '#/components/schemas/CrimeLevelEnum'
+          minimum: -2147483648
+          maximum: 2147483647
+        location:
+          type: string
+          maxLength: 255
+        incident_datetime:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CaseStatusEnum'
+        source_type:
+          $ref: '#/components/schemas/SourceTypeEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        complainants:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseComplainant'
+          readOnly: true
+    PatchedEvidence:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        evidence_type:
+          $ref: '#/components/schemas/EvidenceTypeEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        witness_statement:
+          $ref: '#/components/schemas/WitnessStatementEvidence'
+        medical:
+          $ref: '#/components/schemas/MedicalEvidence'
+        vehicle:
+          $ref: '#/components/schemas/VehicleEvidence'
+        identity_document:
+          $ref: '#/components/schemas/IdentityDocumentEvidence'
+    PatchedRole:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        slug:
+          type: string
+          maxLength: 150
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
+          type: string
+        is_system:
+          type: boolean
+          readOnly: true
+    PatchedScore:
+      type: object
+      properties:
+        score:
+          type: integer
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        payer:
+          type: integer
+          readOnly: true
+          nullable: true
+        case:
+          type: integer
+          readOnly: true
+          nullable: true
+        person:
+          type: integer
+          readOnly: true
+          nullable: true
+        amount:
+          type: integer
+          readOnly: true
+        type:
+          allOf:
+          - $ref: '#/components/schemas/PaymentTypeEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          readOnly: true
+        gateway_ref:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        verified_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - case
+      - created_at
+      - gateway_ref
+      - id
+      - payer
+      - person
+      - status
+      - type
+      - verified_at
+    PaymentCallback:
+      type: object
+      properties:
+        payment_id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/PaymentCallbackStatusEnum'
+        signature:
+          type: string
+      required:
+      - payment_id
+      - signature
+      - status
+    PaymentCallbackStatusEnum:
+      enum:
+      - success
+      - failed
+      type: string
+      description: |-
+        * `success` - success
+        * `failed` - failed
+    PaymentCreate:
+      type: object
+      properties:
+        case_id:
+          type: integer
+        person_id:
+          type: integer
+        amount:
+          type: integer
+          minimum: 1
+        type:
+          $ref: '#/components/schemas/PaymentCreateTypeEnum'
+      required:
+      - amount
+      - case_id
+      - person_id
+      - type
+    PaymentCreateResponse:
+      type: object
+      properties:
+        payment:
+          $ref: '#/components/schemas/Payment'
+        redirect_url:
+          type: string
+        signature:
+          type: string
+      required:
+      - payment
+      - redirect_url
+      - signature
+    PaymentCreateTypeEnum:
+      enum:
+      - bail
+      - fine
+      type: string
+      description: |-
+        * `bail` - bail
+        * `fine` - fine
+    PaymentStatusEnum:
+      enum:
+      - created
+      - pending
+      - success
+      - failed
+      type: string
+      description: |-
+        * `created` - Created
+        * `pending` - Pending
+        * `success` - Success
+        * `failed` - Failed
+    PaymentTypeEnum:
+      enum:
+      - bail
+      - fine
+      type: string
+      description: |-
+        * `bail` - Bail
+        * `fine` - Fine
+    Person:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 255
+        national_id:
+          type: string
+          maxLength: 20
+        phone:
+          type: string
+          maxLength: 20
+        photo:
+          type: string
+          format: uri
+          nullable: true
+        notes:
+          type: string
+      required:
+      - full_name
+      - id
+    Register:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 20
+        national_id:
+          type: string
+          maxLength: 20
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - first_name
+      - id
+      - last_name
+      - national_id
+      - password
+      - phone
+      - username
+    RewardLookupResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/RewardLookupUser'
+        tip:
+          $ref: '#/components/schemas/RewardLookupTip'
+        reward:
+          $ref: '#/components/schemas/RewardLookupResult'
+      required:
+      - reward
+      - tip
+      - user
+    RewardLookupResult:
+      type: object
+      properties:
+        code:
+          type: string
+        issued_at:
+          type: string
+          format: date-time
+        redeemed_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        amount:
+          type: integer
+      required:
+      - amount
+      - code
+      - issued_at
+      - redeemed_at
+      - status
+    RewardLookupTip:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        status:
+          type: string
+      required:
+      - content
+      - id
+      - status
+    RewardLookupUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        national_id:
+          type: string
+      required:
+      - id
+      - national_id
+      - username
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        slug:
+          type: string
+          maxLength: 150
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
+          type: string
+        is_system:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - is_system
+      - name
+      - slug
+    SergeantDecision:
+      type: object
+      properties:
+        approve:
+          type: boolean
+        message:
+          type: string
+      required:
+      - approve
+    SourceTypeEnum:
+      enum:
+      - complaint
+      - crime_scene
+      type: string
+      description: |-
+        * `complaint` - Complaint
+        * `crime_scene` - Crime Scene
+    StatsOverview:
+      type: object
+      properties:
+        total_solved_cases:
+          type: integer
+        total_employees:
+          type: integer
+        active_cases:
+          type: integer
+      required:
+      - active_cases
+      - total_employees
+      - total_solved_cases
+    StatusE94Enum:
+      enum:
+      - pending
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `approved` - Approved
+        * `rejected` - Rejected
+    SuspectCandidate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        person:
+          $ref: '#/components/schemas/Person'
+        rationale:
+          type: string
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusE94Enum'
+          readOnly: true
+        sergeant_message:
+          type: string
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - case
+      - decided_at
+      - id
+      - person
+      - rationale
+      - sergeant_message
+      - status
+    SuspectProposal:
+      type: object
+      properties:
+        suspects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+        rationale:
+          type: string
+      required:
+      - rationale
+      - suspects
+    SuspectStatusUpdate:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/SuspectStatusUpdateStatusEnum'
+        case_id:
+          type: integer
+      required:
+      - case_id
+      - status
+    SuspectStatusUpdateStatusEnum:
+      enum:
+      - wanted
+      - arrested
+      - cleared
+      type: string
+      description: |-
+        * `wanted` - wanted
+        * `arrested` - arrested
+        * `cleared` - cleared
+    Tip:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+          nullable: true
+        person:
+          type: integer
+          nullable: true
+        content:
+          type: string
+        status:
+          allOf:
+          - $ref: '#/components/schemas/TipStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/TipAttachment'
+      required:
+      - content
+      - created_at
+      - id
+      - status
+    TipAttachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        file:
+          type: string
+          format: uri
+      required:
+      - file
+      - id
+    TipDetectiveReview:
+      type: object
+      properties:
+        approve:
+          type: boolean
+        message:
+          type: string
+      required:
+      - approve
+    TipOfficerReview:
+      type: object
+      properties:
+        approve:
+          type: boolean
+        message:
+          type: string
+      required:
+      - approve
+    TipStatusEnum:
+      enum:
+      - pending_officer
+      - pending_detective
+      - rejected
+      - accepted
+      type: string
+      description: |-
+        * `pending_officer` - Pending Officer
+        * `pending_detective` - Pending Detective
+        * `rejected` - Rejected
+        * `accepted` - Accepted
+    TokenPair:
+      type: object
+      properties:
+        refresh:
+          type: string
+          readOnly: true
+        access:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+      required:
+      - refresh
+    TokenRefreshResponse:
+      type: object
+      properties:
+        access:
+          type: string
+      required:
+      - access
+    Trial:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        case:
+          type: integer
+        judge:
+          type: integer
+          readOnly: true
+          nullable: true
+        verdict:
+          $ref: '#/components/schemas/TrialVerdictEnum'
+        punishment_title:
+          type: string
+          maxLength: 255
+        punishment_description:
+          type: string
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - case
+      - decided_at
+      - id
+      - judge
+      - verdict
+    TrialDecision:
+      type: object
+      properties:
+        verdict:
+          $ref: '#/components/schemas/TrialDecisionVerdictEnum'
+        punishment_title:
+          type: string
+        punishment_description:
+          type: string
+      required:
+      - verdict
+    TrialDecisionVerdictEnum:
+      enum:
+      - guilty
+      - not_guilty
+      type: string
+      description: |-
+        * `guilty` - guilty
+        * `not_guilty` - not_guilty
+    TrialVerdictEnum:
+      enum:
+      - guilty
+      - not_guilty
+      type: string
+      description: |-
+        * `guilty` - Guilty
+        * `not_guilty` - Not Guilty
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        national_id:
+          type: string
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+      required:
+      - email
+      - first_name
+      - id
+      - last_name
+      - national_id
+      - phone
+      - username
+    UserWithRoles:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        national_id:
+          type: string
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - email
+      - first_name
+      - id
+      - last_name
+      - national_id
+      - phone
+      - roles
+      - username
+    VehicleEvidence:
+      type: object
+      properties:
+        model:
+          type: string
+          maxLength: 255
+        color:
+          type: string
+          maxLength: 100
+        license_plate:
+          type: string
+          maxLength: 50
+        serial_number:
+          type: string
+          maxLength: 50
+      required:
+      - color
+      - model
+    VerificationStatusEnum:
+      enum:
+      - pending
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `approved` - Approved
+        * `rejected` - Rejected
+    WitnessStatementEvidence:
+      type: object
+      properties:
+        transcription:
+          type: string
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceMedia'
+      required:
+      - transcription
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

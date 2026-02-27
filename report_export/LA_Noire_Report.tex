@@ -1,0 +1,625 @@
+\documentclass[11pt]{report}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,columns=fullflexible}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+\title{LA Noire Police Department Web System\\Project Report}
+\author{Kiarash Joolaei (400100949)\\Mohammad Mahdi Farhadi (99105634)}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\clearpage
+
+\chapter{Project Overview}
+
+\section{Goal}
+
+Build a web-based system that digitizes police department workflows inspired by \textit{L.A. Noire}, using:
+
+\begin{itemize}
+\item Front-end: React (Vite) + TypeScript
+\item Back-end: Django REST Framework
+\item Database: PostgreSQL
+\item Full Docker Compose packaging (db + backend + frontend)
+\end{itemize}
+
+The system implements role-based workflows for case formation, evidence registration, detective reasoning (board), suspect handling, interrogations, trial verdict entry, tips/rewards, notifications, and an optional payment flow for bail/fines.
+
+\section{Repository Structure (High-Level)}
+
+\begin{itemize}
+\item \texttt{\detokenize{backend/}}: Django project (\texttt{\detokenize{police_portal}}) and domain apps in \texttt{\detokenize{backend/apps/*}}
+\item \texttt{\detokenize{frontend/}}: Vite React TypeScript app with pages, API clients, state management, and tests
+\item \texttt{\detokenize{docker-compose.yml}}: PostgreSQL + Django + frontend containers
+\end{itemize}
+
+\section{Implementation Notes That Matter For Consistency Checks}
+
+\begin{itemize}
+\item Default backend permission is authenticated (\texttt{\detokenize{IsAuthenticated}}), with explicit \texttt{\detokenize{AllowAny}} only where required (e.g., login and public pages). See \texttt{\detokenize{backend/police_portal/settings.py}}.
+\item Error responses are normalized into an envelope: \texttt{\detokenize{{ "error": { "code", "message", "details" } }}} via \texttt{\detokenize{backend/police_portal/api_exceptions.py}}.
+\item Swagger/OpenAPI documentation is produced by \texttt{\detokenize{drf-spectacular}} and is enforced via regression tests in \texttt{\detokenize{backend/apps/stats/tests/test_stats_docs.py}}.
+\end{itemize}
+
+\chapter{Evaluation Criteria Mapping (What Was Required vs What We Built)}
+
+This page summarizes the evaluation expectations from the project description and points to the concrete implementation in this repository.
+
+\section{Global Evaluation Expectations}
+
+\subsection{1) Meet the documented requirements}
+
+We implemented the required workflows as domain apps and corresponding UI modules:
+
+\begin{itemize}
+\item Backend domain apps: \texttt{\detokenize{backend/apps/*}} (cases, evidence, board, suspects, interrogations, trials, rewards, payments, notifications, stats, rbac, accounts)
+\item Frontend workflow pages: \texttt{\detokenize{frontend/src/pages/*Page.tsx}} (cases, evidence, detective board, most wanted, reporting, tips/rewards, payments, notifications, admin panel)
+\end{itemize}
+
+\subsection{2) Clean and maintainable code (software engineering principles)}
+
+Concrete practices in this repo:
+
+\begin{itemize}
+\item Layered DRF structure per app (models/serializers/views/urls/tests).
+\item Centralized error envelope handler (\texttt{\detokenize{backend/police_portal/api_exceptions.py}}) to keep API behavior predictable for the UI.
+\item Explicit workflow policies/helpers to avoid scattered role logic (\texttt{\detokenize{backend/apps/cases/policies.py}}, \texttt{\detokenize{backend/apps/suspects/utils.py}}).
+\end{itemize}
+
+\subsection{3) Commit frequency requirement (minimum 15 commits per checkpoint)}
+
+As of \textbf{February 27, 2026}, the main delivery branch (\texttt{\detokenize{front}}) contains \textbf{52 commits} (\texttt{\detokenize{git rev-list --count HEAD}}), and contributions are split across both team members (\texttt{\detokenize{git shortlog -sne HEAD}}).
+
+\section{Checkpoint 1 (Backend-Focused) Requirements}
+
+The description emphasizes:
+
+\begin{itemize}
+\item Proper error handling
+\item Proper access-level management
+\item REST principles
+\item Complete Swagger documentation (with meaningful examples and explanations)
+\item Tests (at least 5 tests in two different apps)
+\item Dockerization
+\item Aggregated statistics endpoint
+\item Correct most-wanted ranking and reward logic
+\end{itemize}
+
+Repository evidence:
+
+\begin{itemize}
+\item Error envelope: \texttt{\detokenize{backend/police_portal/api_exceptions.py}}
+\item Access control defaults: \texttt{\detokenize{backend/police_portal/settings.py}} (\texttt{\detokenize{IsAuthenticated}} by default) and per-endpoint overrides (\texttt{\detokenize{AllowAny}} where needed)
+\item RBAC and role flexibility: \texttt{\detokenize{backend/apps/rbac/*}}
+\item Swagger: \texttt{\detokenize{drf-spectacular}} wiring (\texttt{\detokenize{backend/police_portal/urls.py}}) and schema customizations (\texttt{\detokenize{backend/police_portal/schema.py}})
+\item Swagger regression tests: \texttt{\detokenize{backend/apps/stats/tests/test_stats_docs.py}}
+\item Aggregated stats endpoint: \texttt{\detokenize{backend/apps/stats/views.py}}
+\item Most-wanted formula: \texttt{\detokenize{backend/apps/suspects/utils.py}}
+\item Docker and Compose: \texttt{\detokenize{backend/Dockerfile}}, \texttt{\detokenize{docker-compose.yml}}
+\item Backend tests: \texttt{\detokenize{pytest.ini}} plus multiple tests under \texttt{\detokenize{backend/apps/*/tests/}}
+\end{itemize}
+
+\section{Checkpoint 2 (Frontend-Focused) Requirements}
+
+The description emphasizes:
+
+\begin{itemize}
+\item Role-based, responsive UI
+\item Modular dashboard
+\item Detective board, most-wanted page, case/complaint status, evidence registration/review, admin panel (non-Django admin)
+\item Loading indicators and error display
+\item Proper frontend state management
+\item Frontend tests (at least 5)
+\item Full Docker Compose packaging
+\end{itemize}
+
+Repository evidence:
+
+\begin{itemize}
+\item Role-based dashboard modules: \texttt{\detokenize{frontend/src/features/dashboard/modules.ts}}
+\item Implemented pages: \texttt{\detokenize{frontend/src/pages/*Page.tsx}} (see \texttt{\detokenize{frontend/README.md}} for the module list)
+\item Frontend tests: \texttt{\detokenize{frontend/src/pages/*.test.tsx}} and utility tests (run via \texttt{\detokenize{npm test}})
+\item State management:
+\end{itemize}
+  - Server state: React Query (\texttt{\detokenize{@tanstack/react-query}})
+  - Client auth persistence: Zustand (\texttt{\detokenize{zustand}})
+\begin{itemize}
+\item Dockerization:
+\end{itemize}
+  - Frontend container: \texttt{\detokenize{frontend/Dockerfile}}, \texttt{\detokenize{frontend/nginx.conf}}
+  - Compose wiring: \texttt{\detokenize{docker-compose.yml}}
+
+\chapter{Team Responsibilities}
+
+This section is intentionally aligned with the git history and the actual codebase.
+
+\section{Mohammad Mahdi Farhadi (99105634)}
+
+Primary responsibilities:
+
+1. \textbf{Docker packaging and runtime orchestration}
+   The initial setup for Docker and backend dependencies exists as early commits such as \texttt{\detokenize{889cb45}} ("add docker setup and backend dependencies") and the Compose-based structure that includes PostgreSQL.
+2. \textbf{Core backend scaffolding}
+   Established the Django project scaffold and the initial domain split into apps (accounts/rbac/cases/evidence/board/suspects/interrogations/trials/rewards/payments/notifications/stats).
+3. \textbf{README and operational documentation (initial baseline)}
+   Wrote the initial run instructions and baseline repository hygiene (\texttt{\detokenize{fe58b00}} and related changes).
+
+Evidence in repository:
+commit author "Mohammad Mahdi" appears on the early backend foundation commits (scaffold, dependencies, and feature modules), visible in \texttt{\detokenize{git log}}.
+
+\section{Kiarash Joolaei (400100949)}
+
+Primary responsibilities:
+
+1. \textbf{Backend hardening to match requirements and to unblock frontend}
+   Fixed logical and implementation issues in the backend so that frontend development could rely on correct workflow rules and access control. Examples include:
+   - Making the homepage stats endpoint explicitly public (\texttt{\detokenize{backend/apps/stats/views.py}}, commit \texttt{\detokenize{01ec0d2}}).
+   - Enforcing case-scoped ownership/assignment access checks in workflows (e.g., \texttt{\detokenize{backend/apps/cases/policies.py}}, \texttt{\detokenize{backend/apps/suspects/views.py}}).
+2. \textbf{Swagger/OpenAPI completeness improvements}
+   Implemented domain-specific request/response examples and per-endpoint descriptions across the API surface (\texttt{\detokenize{backend/police_portal/schema.py}}) and added regression tests to keep documentation quality from drifting (\texttt{\detokenize{backend/apps/stats/tests/test_stats_docs.py}}), mainly in commits \texttt{\detokenize{01ec0d2}} and \texttt{\detokenize{3bb278c}}.
+3. \textbf{Frontend development and integration}
+   Implemented the React UI, role-based dashboard modules, workflow pages, and frontend testing (see \texttt{\detokenize{frontend/src/pages/*}} and commits prefixed \texttt{\detokenize{feat(frontend)}} and \texttt{\detokenize{test(frontend)}}).
+
+Evidence in repository:
+commit author "KiaJJ" appears on the integration and polish commits (frontend, docs, tests, and backend fixes), visible in \texttt{\detokenize{git log}}.
+
+\section{Shared Responsibilities}
+
+\begin{itemize}
+\item Both team members followed a consistent commit-message convention and worked in a checkpoint-driven delivery model.
+\item Both participated in requirement interpretation and iterative correction, as allowed by the project rubric (backend modifications during the frontend checkpoint were permitted and expected when requirement analysis gaps are found).
+\end{itemize}
+
+\chapter{Project Management Approach}
+
+\section{Task Creation}
+
+We decomposed the project into tasks that directly mirror the rubric and workflow chapters from the project description:
+
+\begin{itemize}
+\item Authentication and registration
+\item RBAC (dynamic roles + assignment)
+\item Case formation (complaint flow + crime scene flow)
+\item Evidence registration (typed evidence with validations)
+\item Case resolution (detective reasoning and handoff)
+\item Suspect identification + interrogation approvals
+\item Trial verdict entry
+\item Notifications
+\item Rewards/tips workflow
+\item Optional payment workflow (bail/fine)
+\item Swagger completeness and tests
+\item Dockerization and operational runbook
+\end{itemize}
+
+This decomposition is visible in the repository through the Django app structure (\texttt{\detokenize{backend/apps/*}}) and through commit scopes/types (examples in \href{\detokenize{Development-Conventions.md}}{Development Conventions}).
+
+\section{Task Distribution}
+
+\begin{itemize}
+\item Mohammad owned the initial platform work (Docker, backend scaffolding, and baseline documentation), enabling the rest of the system to be built incrementally.
+\item Kiarash owned the integration work: fixing backend workflow mismatches discovered during UI work, completing frontend modules, and raising documentation/testing quality to satisfy evaluation criteria.
+\end{itemize}
+
+\section{Iteration and Acceptance}
+
+Acceptance criteria were taken from the rubric checklists (e.g., "complete Swagger documentation", "proper access-level verification", and specific pages/modules on frontend).
+
+We treated tests as part of the definition-of-done:
+
+\begin{itemize}
+\item Backend: \texttt{\detokenize{pytest}} + API-level flow tests and schema regression tests.
+\item Frontend: \texttt{\detokenize{vitest}} + Testing Library tests for key pages and utilities.
+\end{itemize}
+
+\chapter{Development Conventions}
+
+\section{Commit Message Format}
+
+Commit messages follow a "Conventional Commits"-style pattern:
+
+\texttt{\detokenize{type(scope): short description}}
+
+Examples from \texttt{\detokenize{git log --oneline}} include:
+
+\begin{itemize}
+\item \texttt{\detokenize{feat(frontend): implement case and complaint workflow operations}}
+\item \texttt{\detokenize{feat(backend): enforce workflow ownership and role access across cases}}
+\item \texttt{\detokenize{test: cover queues, access enforcement, rewards, and payment validation}}
+\item \texttt{\detokenize{docs(frontend): add runbook and environment examples}}
+\item \texttt{\detokenize{chore(docker): add frontend container and compose integration}}
+\end{itemize}
+
+Scopes are used when a change is clearly bounded (e.g., \texttt{\detokenize{frontend}}, \texttt{\detokenize{backend}}, \texttt{\detokenize{docker}}); otherwise \texttt{\detokenize{type:}} is used.
+
+\section{Naming and Code Organization}
+
+Backend (Django):
+
+\begin{itemize}
+\item Apps are split by domain under \texttt{\detokenize{backend/apps/<domain>/}} (e.g., \texttt{\detokenize{cases}}, \texttt{\detokenize{evidence}}, \texttt{\detokenize{suspects}}).
+\item Python naming follows standard conventions:
+\end{itemize}
+  - \texttt{\detokenize{PascalCase}} for classes (\texttt{\detokenize{Case}}, \texttt{\detokenize{CrimeSceneReport}})
+  - \texttt{\detokenize{snake_case}} for functions and variables (\texttt{\detokenize{can_user_access_case}}, \texttt{\detokenize{compute_most_wanted}})
+\begin{itemize}
+\item Each app keeps the typical DRF layers co-located:
+\end{itemize}
+  \texttt{\detokenize{models.py}}, \texttt{\detokenize{serializers.py}}, \texttt{\detokenize{views.py}}, \texttt{\detokenize{urls.py}}, and \texttt{\detokenize{tests/}}.
+
+Frontend (React + TypeScript):
+
+\begin{itemize}
+\item Pages live in \texttt{\detokenize{frontend/src/pages/*Page.tsx}}.
+\item API clients are separated as \texttt{\detokenize{*Api.ts}} next to the page modules (e.g., \texttt{\detokenize{casesApi.ts}}, \texttt{\detokenize{boardApi.ts}}).
+\item Component and type naming follows TS conventions:
+\end{itemize}
+  - \texttt{\detokenize{PascalCase}} for React components
+  - \texttt{\detokenize{camelCase}} for functions
+  - explicit exported types (\texttt{\detokenize{RoleSlug}}, \texttt{\detokenize{DashboardModule}})
+
+\section{Error Handling and API Envelope}
+
+Backend errors are normalized into a consistent response envelope via:
+
+\begin{itemize}
+\item \texttt{\detokenize{backend/police_portal/api_exceptions.py}}
+\end{itemize}
+
+This keeps frontend error handling predictable across endpoints and matches the OpenAPI descriptions used throughout the API.
+
+\section{Documentation Convention (Swagger / OpenAPI)}
+
+We intentionally treated Swagger as a product requirement, not an afterthought:
+
+\begin{itemize}
+\item Per-endpoint narrative descriptions are included via view docstrings and \texttt{\detokenize{@extend_schema}}.
+\item Domain-specific request/response examples are generated/attached through \texttt{\detokenize{backend/police_portal/schema.py}}.
+\item A regression test suite ensures documentation quality stays intact (\texttt{\detokenize{backend/apps/stats/tests/test_stats_docs.py}}).
+\end{itemize}
+
+\chapter{Development Flow Summary (What Changed and Why)}
+
+This is a condensed version of the development-flow notes included in the provided "Project Report" PDF, rewritten to stay consistent with the repository.
+
+\section{Fixing a Frontend Homepage Error (Public Stats)}
+
+Problem:
+the frontend homepage calls \texttt{\detokenize{GET /api/v1/stats/overview/}} without authentication, but the backend default permission is authenticated (\texttt{\detokenize{IsAuthenticated}}) via \texttt{\detokenize{backend/police_portal/settings.py}}.
+
+Root cause:
+the stats endpoint did not override the default, so anonymous users correctly received \texttt{\detokenize{401}}, and the UI showed an error banner.
+
+Final fix:
+\texttt{\detokenize{backend/apps/stats/views.py}} sets \texttt{\detokenize{permission_classes = [AllowAny]}} for \texttt{\detokenize{StatsOverviewView}} and documents the endpoint as public.
+
+Verification:
+\texttt{\detokenize{backend/apps/stats/tests/test_stats_docs.py}} asserts the route returns \texttt{\detokenize{200}} for anonymous requests and checks that Swagger examples are real (not placeholders).
+
+\section{Swagger / OpenAPI Documentation Improvements}
+
+Goal:
+meet the rubric requirement for "complete and reliable Swagger documentation (including appropriate request/response examples and full explanations)".
+
+Key changes (repository evidence):
+
+\begin{itemize}
+\item Corrected authentication schema outputs by introducing structured response serializers (e.g., \texttt{\detokenize{backend/apps/accounts/serializers.py}} and \texttt{\detokenize{backend/apps/accounts/views.py}}).
+\item Wrapped refresh-token docs to produce higher quality OpenAPI (see \texttt{\detokenize{TokenRefreshDocsView}} in \texttt{\detokenize{backend/apps/accounts/views.py}}).
+\item Replaced generic placeholders with domain-specific examples via \texttt{\detokenize{backend/police_portal/schema.py}}.
+\item Added a regression test suite so every operation has a description and JSON examples (\texttt{\detokenize{backend/apps/stats/tests/test_stats_docs.py}}).
+\end{itemize}
+
+\section{Docker and Runtime Verification}
+
+Runtime packaging:
+
+\begin{itemize}
+\item \texttt{\detokenize{docker-compose.yml}} runs PostgreSQL (\texttt{\detokenize{db}}), Django (\texttt{\detokenize{web}}), and the frontend container (\texttt{\detokenize{frontend}}).
+\item Backend image comes from \texttt{\detokenize{backend/Dockerfile}}.
+\item Frontend image comes from \texttt{\detokenize{frontend/Dockerfile}} and serves via \texttt{\detokenize{frontend/nginx.conf}}.
+\end{itemize}
+
+\section{Tests and Quality Gates}
+
+Backend:
+pytest-based API and schema tests live under \texttt{\detokenize{backend/apps/*/tests/}} and are wired via \texttt{\detokenize{pytest.ini}}.
+
+Frontend:
+Vitest + Testing Library tests exist under \texttt{\detokenize{frontend/src/**}} and are runnable via \texttt{\detokenize{npm test}} (see \texttt{\detokenize{frontend/package.json}} scripts).
+
+\chapter{Key System Entities (And Why They Exist)}
+
+This section maps directly to the Django models under \texttt{\detokenize{backend/apps/*/models.py}}.
+
+\section{Identity, Roles, and Access}
+
+\textbf{User} (\texttt{\detokenize{apps.accounts.models.User}})
+Exists because all workflows are role-gated and auditable by actor (who created, reviewed, approved).
+
+\textbf{Role} and \textbf{UserRole} (\texttt{\detokenize{apps.rbac.models}})
+Exist to satisfy the requirement: "roles are dynamic and can be added/removed/modified without changing source code".
+\texttt{\detokenize{RoleRequiredPermission}} uses role slugs to enforce access at runtime (\texttt{\detokenize{apps.rbac/permissions.py}}).
+
+\section{Case Formation and Case Lifecycle}
+
+\textbf{Complaint} (\texttt{\detokenize{apps.cases.models.Complaint}})
+Represents complainant-initiated case formation with the required review loop (cadet review, officer review, strike count, return messages).
+
+\textbf{Case} (\texttt{\detokenize{apps.cases.models.Case}})
+Represents the actual formed case, with a \texttt{\detokenize{source_type}} of \texttt{\detokenize{complaint}} or \texttt{\detokenize{crime_scene}}, and a lifecycle status (\texttt{\detokenize{active}}, \texttt{\detokenize{pending_superior}}, \texttt{\detokenize{closed_*}}, \texttt{\detokenize{voided}}).
+
+\textbf{CaseComplainant}
+Exists because a case/complaint may have multiple complainants and their identities must be approved/rejected by cadet workflow.
+
+\textbf{CrimeSceneReport} and \textbf{CrimeSceneWitness}
+Exist to model officer-initiated case formation including witness identity capture (phone + national\_id with validation against registered users) and superior approval.
+
+\textbf{CaseAssignment}
+Exists because many workflows require case-scoped responsibility (e.g., a specific detective is assigned to a case, and only that detective can submit suspects or operate the board for that case).
+
+\section{Evidence}
+
+\textbf{Evidence}
+Uniform wrapper entity required by spec: title, description, registrant, registration date; linked to a case.
+
+Typed evidence entities exist because the requirements specify different storage constraints:
+
+\begin{itemize}
+\item \textbf{WitnessStatementEvidence} and \textbf{EvidenceMedia}: transcription plus optional media (image/video/audio).
+\item \textbf{MedicalEvidence} and \textbf{MedicalEvidenceImage}: forensic/identity-db fields plus one or more images.
+\item \textbf{VehicleEvidence}: enforces the constraint "license plate and serial number cannot both exist" (validated in \texttt{\detokenize{apps.evidence.serializers.VehicleEvidenceSerializer}}).
+\item \textbf{IdentityDocumentEvidence}: stores flexible key-value details via \texttt{\detokenize{JSONField}}.
+\end{itemize}
+
+\section{Detective Reasoning}
+
+\textbf{DetectiveBoard}, \textbf{BoardItem}, \textbf{BoardConnection} (\texttt{\detokenize{apps.board.models}})
+Exist to support the "detective board" workflow: free positioning (\texttt{\detokenize{x}}, \texttt{\detokenize{y}}), evidence references, notes, and red-line connections.
+
+\section{Suspects, Wanted Status, and Ranking}
+
+\textbf{Person}, \textbf{SuspectCandidate}, \textbf{WantedRecord} (\texttt{\detokenize{apps.suspects.models}})
+Separate "person identity" from "candidate within a specific case" and from "wanted status over time".
+Ranking and reward formula are implemented in \texttt{\detokenize{apps.suspects.utils.compute_most_wanted()}} and matches the spec (days wanted \textit{ crime degree, reward = score } 20,000,000 Rials).
+
+\section{Interrogation and Trial}
+
+\textbf{Interrogation} (\texttt{\detokenize{apps.interrogations.models}})
+Exists to capture detective + sergeant guilt scoring (1-10) and multi-level approvals (captain, and chief for critical crimes).
+
+\textbf{Trial} (\texttt{\detokenize{apps.trials.models}})
+Exists to store judge verdict and punishment, with the requirement that the judge can see the entire case dossier (served by reporting endpoints).
+
+\section{Tips / Rewards, Payments, Notifications}
+
+\textbf{Tip}, \textbf{TipAttachment}, \textbf{RewardCode} (\texttt{\detokenize{apps.rewards.models}})
+Exist to model the two-stage review queue (officer then detective), to issue a unique reward code, and to support reward lookup by code and national id.
+
+\textbf{Payment} (\texttt{\detokenize{apps.payments.models}})
+Exists for optional bail/fine flows with gateway reference and verification timestamps, and to support a return page in the workflow.
+
+\textbf{Notification} (\texttt{\detokenize{apps.notifications.models}})
+Exists because the spec requires notifying detectives when new evidence/documents are added or when decisions are made in workflows (implemented by creating notification rows during workflow transitions).
+
+\chapter{NPM Packages Used (Up to 6)}
+
+The frontend uses multiple packages; this section highlights \textbf{six} that were intentionally chosen and are directly used in the shipped UI (\texttt{\detokenize{frontend/package.json}}).
+
+\section{1) \texttt{\detokenize{react-router-dom}}}
+
+Why it exists in this project:
+role-based navigation and multiple workflow pages require routing with nested layouts and guarded routes.
+
+\section{2) \texttt{\detokenize{@tanstack/react-query}}}
+
+Why it exists in this project:
+workflow pages depend on server state (queues, case details, actions). React Query provides caching, request deduplication, loading/error states, and predictable mutation handling.
+
+\section{3) \texttt{\detokenize{axios}}}
+
+Why it exists in this project:
+provides a clean HTTP client with interceptors (useful for JWT headers and consistent error handling), used across \texttt{\detokenize{frontend/src/pages/*Api.ts}}.
+
+\section{4) \texttt{\detokenize{zustand}}}
+
+Why it exists in this project:
+lightweight global state for auth/session persistence and cross-page shared state without introducing the overhead of larger state frameworks.
+
+\section{5) \texttt{\detokenize{react-hook-form}} (plus \texttt{\detokenize{@hookform/resolvers}} + \texttt{\detokenize{zod}})}
+
+Why it exists in this project:
+complex forms (complaint submission, evidence creation, admin role/user changes) benefit from performant form state handling and declarative validation. \texttt{\detokenize{zod}} provides typed schemas and \texttt{\detokenize{@hookform/resolvers}} integrates them.
+
+\section{6) \texttt{\detokenize{reactflow}}}
+
+Why it exists in this project:
+the detective board requires node-like UI behavior and connections. React Flow provides interaction primitives that map cleanly onto the board workflow (drag/drop positioning and linking).
+
+Note:
+additional UI and utility packages are present (e.g., \texttt{\detokenize{dayjs}}, \texttt{\detokenize{clsx}}, \texttt{\detokenize{html-to-image}}, \texttt{\detokenize{lucide-react}}), but the list above is limited to six per the report constraint.
+
+\chapter{AI Usage (Examples and Evaluation)}
+
+This project used AI as an accelerator for boilerplate-heavy tasks, and then relied on manual review + tests to keep behavior correct and requirements-aligned.
+
+\section{Examples of AI-Generated (AI-Assisted) Code In This Repository}
+
+The following code areas were produced or heavily drafted with AI assistance and then refined to match the project rubric and the existing codebase:
+
+Most of the AI-assisted backend work is concentrated in the documentation and verification layer (Swagger examples + schema tests), visible in commits like \texttt{\detokenize{01ec0d2}} and \texttt{\detokenize{3bb278c}} (see \texttt{\detokenize{git log}}).
+
+\subsection{Example 1: Public homepage stats fix + documentation}
+
+File: \texttt{\detokenize{backend/apps/stats/views.py}}
+
+What it solves:
+the frontend homepage calls \texttt{\detokenize{GET /api/v1/stats/overview/}} without authentication, so the backend must override the global \texttt{\detokenize{IsAuthenticated}} default and allow anonymous access.
+
+Implementation points:
+
+\begin{itemize}
+\item \texttt{\detokenize{permission_classes = [AllowAny]}} on \texttt{\detokenize{StatsOverviewView}}
+\item endpoint description explicitly states "Authentication: No JWT required."
+\end{itemize}
+
+Code excerpt:
+\begin{lstlisting}
+class StatsOverviewView(APIView):
+    permission_classes = [AllowAny]
+\end{lstlisting}
+
+\subsection{Example 2: Domain-specific OpenAPI example system}
+
+File: \texttt{\detokenize{backend/police_portal/schema.py}}
+
+What it solves:
+generic placeholder examples (e.g., \texttt{\detokenize{{"example": "value"}}}) do not satisfy the rubric requirement for complete Swagger docs with meaningful request/response examples.
+
+Implementation points:
+
+\begin{itemize}
+\item A curated map keyed by serializer import path (\texttt{\detokenize{SERIALIZER_REQUEST_EXAMPLES}}) provides realistic payloads for core workflows (complaints, evidence creation, suspect proposal, tips, payments, etc.).
+\item Schema generation is centralized through \texttt{\detokenize{REST_FRAMEWORK["DEFAULT_SCHEMA_CLASS"] = "police_portal.schema.PoliceAutoSchema"}} in \texttt{\detokenize{backend/police_portal/settings.py}}.
+\end{itemize}
+
+Code excerpt:
+\begin{lstlisting}
+SERIALIZER_REQUEST_EXAMPLES = {
+    "apps.accounts.serializers.LoginSerializer": {
+        "identifier": "officer@example.com",
+        "password": "Pass1234!",
+    },
+}
+\end{lstlisting}
+
+\subsection{Example 3: Schema regression tests to prevent documentation drift}
+
+File: \texttt{\detokenize{backend/apps/stats/tests/test_stats_docs.py}}
+
+What it enforces:
+
+\begin{itemize}
+\item Every operation has a description.
+\item JSON request bodies include request examples.
+\item JSON success responses include non-generic examples.
+\end{itemize}
+
+This makes Swagger quality testable, which is valuable when AI is involved because it prevents "looks correct" documentation from silently regressing.
+
+Code excerpt:
+\begin{lstlisting}
+self.assertTrue(operation.get("description"))
+self.assertTrue(request_content["application/json"].get("examples"))
+\end{lstlisting}
+
+\section{Strengths and Weaknesses of AI in Front-End Development (Observed)}
+
+Strengths:
+AI is effective at accelerating repetitive UI scaffolding (pages/forms), generating initial API client wrappers, and suggesting test cases for page-level behavior. It also helps produce consistent error-state UI and loading-state patterns when the data model is stable.
+
+Weaknesses:
+AI often guesses UX and workflow rules incorrectly when the requirements are nuanced (role-scoped queues, multi-stage approvals, visibility rules). It also tends to over-generate components or abstractions that look "clean" but do not match the project's existing patterns, which increases integration time.
+
+\section{Strengths and Weaknesses of AI in Back-End Development (Observed)}
+
+Strengths:
+AI is useful for quickly drafting DRF serializers/views, writing repetitive schema descriptions/examples, and producing test scaffolding. It can also help spot access-control gaps by reading workflows and suggesting enforcement points.
+
+Weaknesses:
+AI can miss subtle authorization constraints (case-scoped assignment checks, role priority rules, and state-machine transitions). It may also produce Swagger docs that "compile" but do not reflect real payload shapes unless the team adds verification tests (which we did).
+
+\chapter{Requirement Analysis (Initial vs Final)}
+
+This section summarizes requirement interpretation decisions and how they evolved based on implementation feedback, with an emphasis on consistency with the shipped code.
+
+\section{Initial Requirement Analysis (What We Assumed Early)}
+
+1. \textbf{Global authentication is the default}
+   We configured DRF with \texttt{\detokenize{IsAuthenticated}} as the default permission class (\texttt{\detokenize{backend/police_portal/settings.py}}), expecting only a small set of endpoints to be public.
+2. \textbf{Role system must be dynamic}
+   We designed \texttt{\detokenize{Role}} and \texttt{\detokenize{UserRole}} models early to allow adding/removing/modifying roles without code changes (\texttt{\detokenize{backend/apps/rbac/models.py}}).
+3. \textbf{Workflows are stateful}
+   We modeled complaint/case/evidence status as explicit enums (e.g., \texttt{\detokenize{ComplaintStatus}}, \texttt{\detokenize{CaseStatus}}) so that multi-stage approvals can be enforced and tested (\texttt{\detokenize{backend/apps/cases/constants.py}}).
+
+Strengths of these early decisions:
+they align with the rubric emphasis on access control, maintainable entity models, and workflow correctness.
+
+Weaknesses (found later):
+some endpoints that are \textit{functionally public} (homepage stats, most-wanted public view) must explicitly override the global auth default or the frontend will behave incorrectly.
+
+\section{Final Requirement Analysis (What The Code Now Enforces)}
+
+\subsection{1) Public vs Private Endpoints}
+
+We kept a secure default and explicitly marked public endpoints with \texttt{\detokenize{AllowAny}}, for example:
+
+\begin{itemize}
+\item Public homepage stats: \texttt{\detokenize{backend/apps/stats/views.py}} (\texttt{\detokenize{StatsOverviewView.permission_classes = [AllowAny]}})
+\item Public most-wanted ranking: \texttt{\detokenize{backend/apps/suspects/views.py}} (\texttt{\detokenize{MostWantedPublicView.permission_classes = [AllowAny]}})
+\end{itemize}
+
+This balances security with the project's "public page" requirements.
+
+\subsection{2) Case-Scoped Access and Ownership}
+
+During integration we tightened access control so that role membership alone is not enough for sensitive actions.
+
+Examples in code:
+
+\begin{itemize}
+\item \texttt{\detokenize{backend/apps/cases/policies.py}} implements \texttt{\detokenize{can_user_access_case()}} and assignment checks (\texttt{\detokenize{CaseAssignment}}).
+\item \texttt{\detokenize{backend/apps/suspects/views.py}} verifies the proposing detective is assigned to the case before allowing suspect proposals.
+\end{itemize}
+
+Strength:
+prevents cross-case data leaks and matches the real workflow ("responsible detective").
+
+Tradeoff:
+adds complexity to API code and requires careful testing, which we covered with pytest flow tests.
+
+\subsection{3) Evidence Type Rules and Validations}
+
+We encoded evidence-type-specific requirements in serializers:
+
+\begin{itemize}
+\item \texttt{\detokenize{backend/apps/evidence/serializers.py}} enforces the vehicle constraint (license plate XOR serial number).
+\item \texttt{\detokenize{EvidenceCreateSerializer}} enforces presence of nested evidence payload by type.
+\end{itemize}
+
+Strength:
+pushes workflow correctness into validation (fail fast, predictable errors).
+
+\subsection{4) Most-Wanted Ranking and Reward Formula}
+
+We implemented the formula exactly as specified:
+
+\begin{itemize}
+\item \texttt{\detokenize{backend/apps/suspects/utils.py}} computes:
+\end{itemize}
+  - \texttt{\detokenize{ranking_score = days_wanted * crime_degree}}
+  - \texttt{\detokenize{reward_amount = ranking_score * 20000000}}
+  - only includes suspects wanted for at least 30 days.
+
+Strength:
+implementation is deterministic and testable; frontend can display ranking/reward confidently.
+
+\subsection{5) Swagger Documentation Quality As A Requirement}
+
+We treated Swagger examples and descriptions as a graded deliverable:
+
+\begin{itemize}
+\item Centralized schema customization in \texttt{\detokenize{backend/police_portal/schema.py}}.
+\item Added regression tests in \texttt{\detokenize{backend/apps/stats/tests/test_stats_docs.py}} to ensure examples and descriptions remain non-generic and complete.
+\end{itemize}
+
+Strength:
+reduces the risk of losing points due to documentation drift, especially when AI assistance is used to generate repetitive docs.
+
+\end{document}
