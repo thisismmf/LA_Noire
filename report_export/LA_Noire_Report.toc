@@ -1,0 +1,59 @@
+\contentsline {chapter}{\numberline {1}Project Overview}{4}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Goal}{4}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Repository Structure (High-Level)}{4}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Implementation Notes That Matter For Consistency Checks}{4}{section.1.3}%
+\contentsline {chapter}{\numberline {2}Evaluation Criteria Mapping (What Was Required vs What We Built)}{6}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Global Evaluation Expectations}{6}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}1) Meet the documented requirements}{6}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}2) Clean and maintainable code (software engineering principles)}{6}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}3) Commit frequency requirement (minimum 15 commits per checkpoint)}{7}{subsection.2.1.3}%
+\contentsline {section}{\numberline {2.2}Checkpoint 1 (Backend-Focused) Requirements}{7}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Checkpoint 2 (Frontend-Focused) Requirements}{8}{section.2.3}%
+\contentsline {chapter}{\numberline {3}Team Responsibilities}{9}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Mohammad Mahdi Farhadi (99105634)}{9}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Kiarash Joolaei (400100949)}{9}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Shared Responsibilities}{10}{section.3.3}%
+\contentsline {chapter}{\numberline {4}Project Management Approach}{11}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Task Creation}{11}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Task Distribution}{12}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Iteration and Acceptance}{12}{section.4.3}%
+\contentsline {chapter}{\numberline {5}Development Conventions}{13}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Commit Message Format}{13}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Naming and Code Organization}{13}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Error Handling and API Envelope}{14}{section.5.3}%
+\contentsline {section}{\numberline {5.4}Documentation Convention (Swagger / OpenAPI)}{14}{section.5.4}%
+\contentsline {chapter}{\numberline {6}Development Flow Summary (What Changed and Why)}{15}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Fixing a Frontend Homepage Error (Public Stats)}{15}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Swagger / OpenAPI Documentation Improvements}{15}{section.6.2}%
+\contentsline {section}{\numberline {6.3}Docker and Runtime Verification}{16}{section.6.3}%
+\contentsline {section}{\numberline {6.4}Tests and Quality Gates}{16}{section.6.4}%
+\contentsline {chapter}{\numberline {7}Key System Entities (And Why They Exist)}{17}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Identity, Roles, and Access}{17}{section.7.1}%
+\contentsline {section}{\numberline {7.2}Case Formation and Case Lifecycle}{17}{section.7.2}%
+\contentsline {section}{\numberline {7.3}Evidence}{18}{section.7.3}%
+\contentsline {section}{\numberline {7.4}Detective Reasoning}{18}{section.7.4}%
+\contentsline {section}{\numberline {7.5}Suspects, Wanted Status, and Ranking}{18}{section.7.5}%
+\contentsline {section}{\numberline {7.6}Interrogation and Trial}{18}{section.7.6}%
+\contentsline {section}{\numberline {7.7}Tips / Rewards, Payments, Notifications}{18}{section.7.7}%
+\contentsline {chapter}{\numberline {8}NPM Packages Used (Up to 6)}{20}{chapter.8}%
+\contentsline {section}{\numberline {8.1}1) \texttt {react-router-dom}}{20}{section.8.1}%
+\contentsline {section}{\numberline {8.2}2) \texttt {@tanstack/react-query}}{20}{section.8.2}%
+\contentsline {section}{\numberline {8.3}3) \texttt {axios}}{20}{section.8.3}%
+\contentsline {section}{\numberline {8.4}4) \texttt {zustand}}{20}{section.8.4}%
+\contentsline {section}{\numberline {8.5}5) \texttt {react-hook-form} (plus \texttt {@hookform/resolvers} + \texttt {zod})}{21}{section.8.5}%
+\contentsline {section}{\numberline {8.6}6) \texttt {reactflow}}{21}{section.8.6}%
+\contentsline {chapter}{\numberline {9}AI Usage (Examples and Evaluation)}{22}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Examples of AI-Generated (AI-Assisted) Code In This Repository}{22}{section.9.1}%
+\contentsline {subsection}{\numberline {9.1.1}Example 1: Public homepage stats fix + documentation}{22}{subsection.9.1.1}%
+\contentsline {subsection}{\numberline {9.1.2}Example 2: Domain-specific OpenAPI example system}{23}{subsection.9.1.2}%
+\contentsline {subsection}{\numberline {9.1.3}Example 3: Schema regression tests to prevent documentation drift}{23}{subsection.9.1.3}%
+\contentsline {section}{\numberline {9.2}Strengths and Weaknesses of AI in Front-End Development (Observed)}{23}{section.9.2}%
+\contentsline {section}{\numberline {9.3}Strengths and Weaknesses of AI in Back-End Development (Observed)}{24}{section.9.3}%
+\contentsline {chapter}{\numberline {10}Requirement Analysis (Initial vs Final)}{25}{chapter.10}%
+\contentsline {section}{\numberline {10.1}Initial Requirement Analysis (What We Assumed Early)}{25}{section.10.1}%
+\contentsline {section}{\numberline {10.2}Final Requirement Analysis (What The Code Now Enforces)}{25}{section.10.2}%
+\contentsline {subsection}{\numberline {10.2.1}1) Public vs Private Endpoints}{25}{subsection.10.2.1}%
+\contentsline {subsection}{\numberline {10.2.2}2) Case-Scoped Access and Ownership}{26}{subsection.10.2.2}%
+\contentsline {subsection}{\numberline {10.2.3}3) Evidence Type Rules and Validations}{26}{subsection.10.2.3}%
+\contentsline {subsection}{\numberline {10.2.4}4) Most-Wanted Ranking and Reward Formula}{26}{subsection.10.2.4}%
+\contentsline {subsection}{\numberline {10.2.5}5) Swagger Documentation Quality As A Requirement}{27}{subsection.10.2.5}%
