@@ -18,11 +18,18 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class PaymentCallbackSerializer(serializers.Serializer):
     payment_id = serializers.IntegerField()
-    status = serializers.ChoiceField(choices=["success", "failed"])
-    signature = serializers.CharField()
+    authority = serializers.CharField(required=False)
+    status = serializers.CharField(required=False)
+
+    def validate_status(self, value):
+        normalized = str(value).upper()
+        allowed = {"OK", "NOK", "SUCCESS", "FAILED", "FAIL"}
+        if normalized not in allowed:
+            raise serializers.ValidationError("status must be one of OK, NOK, SUCCESS, FAILED, FAIL")
+        return normalized
 
 
 class PaymentCreateResponseSerializer(serializers.Serializer):
     payment = PaymentSerializer()
     redirect_url = serializers.CharField()
-    signature = serializers.CharField()
+    authority = serializers.CharField()
