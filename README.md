@@ -4,8 +4,8 @@ Police Department Web System
 
 ## Run (Docker)
 ```bash
-docker compose build --no-cache web
-docker compose up
+docker compose build down
+docker compose up -d --build
 ```
 
 Notes:
