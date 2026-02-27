@@ -26,6 +26,11 @@ class SergeantDecisionSerializer(serializers.Serializer):
     approve = serializers.BooleanField()
     message = serializers.CharField(required=False, allow_blank=True)
 
+    def validate(self, attrs):
+        if not attrs.get("approve") and not (attrs.get("message") or "").strip():
+            raise serializers.ValidationError("message is required when rejecting a suspect")
+        return attrs
+
 
 class WantedRecordSerializer(serializers.ModelSerializer):
     person = PersonSerializer(read_only=True)

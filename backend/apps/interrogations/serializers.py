@@ -13,11 +13,12 @@ class InterrogationSerializer(serializers.ModelSerializer):
             "sergeant_score",
             "captain_decision",
             "captain_notes",
+            "captain_reviewed_by",
             "chief_decision",
             "chief_notes",
             "status",
         )
-        read_only_fields = ("id", "status")
+        read_only_fields = ("id", "status", "captain_reviewed_by")
 
 
 class InterrogationCreateSerializer(serializers.Serializer):

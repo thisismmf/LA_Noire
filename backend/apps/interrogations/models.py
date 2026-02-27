@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class Interrogation(models.Model):
@@ -16,6 +17,13 @@ class Interrogation(models.Model):
     sergeant_score = models.IntegerField(null=True, blank=True)
     captain_decision = models.CharField(max_length=50, blank=True)
     captain_notes = models.TextField(blank=True)
+    captain_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="captain_interrogation_decisions",
+    )
     chief_decision = models.CharField(max_length=50, blank=True)
     chief_notes = models.TextField(blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="pending_detective")

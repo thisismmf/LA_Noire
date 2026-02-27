@@ -15,12 +15,14 @@ from apps.rbac.constants import (
     ROLE_SERGEANT,
     ROLE_CAPTAIN,
     ROLE_POLICE_CHIEF,
+    ROLE_CORONER,
     ROLE_SYSTEM_ADMIN,
     ROLE_COMPLAINANT,
     ROLE_BASE_USER,
 )
 from apps.rbac.utils import user_has_role, get_role_by_slug
 from apps.accounts.models import User
+from apps.notifications.models import Notification
 from .models import Complaint, Case, CaseComplainant, CaseReview, CrimeSceneReport, CaseAssignment
 from .serializers import (
     ComplaintSerializer,
@@ -38,7 +40,39 @@ from .serializers import (
     CaseAssignmentUpsertSerializer,
 )
 from .constants import ComplaintStatus, CaseStatus, CrimeSceneStatus, CaseSourceType, CaseAssignmentRole
-from .policies import get_required_approver_role_slug, POLICE_ROLES
+from .policies import get_required_approver_role_slug, POLICE_ROLES, can_user_access_case, get_primary_role, ROLE_PRIORITY
+
+
+POLICE_VISIBILITY_ROLES = {
+    ROLE_CADET,
+    ROLE_POLICE_OFFICER,
+    ROLE_PATROL_OFFICER,
+    ROLE_DETECTIVE,
+    ROLE_SERGEANT,
+    ROLE_CAPTAIN,
+    ROLE_POLICE_CHIEF,
+    ROLE_CORONER,
+}
+
+NON_CADET_POLICE_VISIBILITY_ROLES = POLICE_VISIBILITY_ROLES - {ROLE_CADET}
+
+WORKFLOW_VISIBLE_CASE_STATUSES = [
+    CaseStatus.ACTIVE,
+    CaseStatus.CLOSED_SOLVED,
+    CaseStatus.CLOSED_UNSOLVED,
+    CaseStatus.VOIDED,
+]
+
+
+def _is_superior_role(viewer_role, creator_role):
+    if not viewer_role or not creator_role:
+        return False
+    role_rank = {role: index for index, role in enumerate(ROLE_PRIORITY)}
+    viewer_rank = role_rank.get(viewer_role)
+    creator_rank = role_rank.get(creator_role)
+    if viewer_rank is None or creator_rank is None:
+        return False
+    return viewer_rank < creator_rank
 
 
 def _case_queryset_for_user(user):
@@ -46,9 +80,34 @@ def _case_queryset_for_user(user):
         return Case.objects.none()
     if user_has_role(user, [ROLE_SYSTEM_ADMIN]):
         return Case.objects.all()
-    return Case.objects.filter(
+    queryset = Case.objects.filter(
         Q(assignments__user=user) | Q(complaint__created_by=user) | Q(created_by=user)
-    ).distinct()
+    )
+    user_role_slugs = set(user.user_roles.select_related("role").values_list("role__slug", flat=True))
+    if user_role_slugs & POLICE_VISIBILITY_ROLES:
+        queryset = queryset | Case.objects.filter(
+            source_type=CaseSourceType.COMPLAINT,
+            status__in=WORKFLOW_VISIBLE_CASE_STATUSES,
+        )
+        if user_role_slugs & NON_CADET_POLICE_VISIBILITY_ROLES:
+            queryset = queryset | Case.objects.filter(
+                source_type=CaseSourceType.CRIME_SCENE,
+                status__in=WORKFLOW_VISIBLE_CASE_STATUSES,
+            )
+    viewer_primary_role = get_primary_role(user)
+    if viewer_primary_role in ROLE_PRIORITY:
+        pending_crime_scene_cases = Case.objects.filter(
+            source_type=CaseSourceType.CRIME_SCENE,
+            status=CaseStatus.PENDING_SUPERIOR_APPROVAL,
+        ).exclude(created_by=user).select_related("created_by")
+        superior_visible_case_ids = []
+        for case in pending_crime_scene_cases:
+            creator_primary_role = get_primary_role(case.created_by)
+            if _is_superior_role(viewer_primary_role, creator_primary_role):
+                superior_visible_case_ids.append(case.id)
+        if superior_visible_case_ids:
+            queryset = queryset | Case.objects.filter(id__in=superior_visible_case_ids)
+    return queryset.distinct()
 
 
 class ComplaintCreateView(generics.CreateAPIView):
@@ -75,9 +134,19 @@ class ComplaintDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user_has_role(user, [ROLE_SYSTEM_ADMIN, ROLE_CADET, ROLE_POLICE_OFFICER]):
+        if user_has_role(user, [ROLE_SYSTEM_ADMIN]):
             return Complaint.objects.all()
-        return Complaint.objects.filter(created_by=user)
+        queryset = Complaint.objects.filter(created_by=user)
+        if user_has_role(user, [ROLE_CADET]):
+            queryset = queryset | Complaint.objects.filter(
+                Q(assigned_cadet=user) | Q(status=ComplaintStatus.PENDING_CADET_REVIEW, assigned_cadet__isnull=True)
+            )
+        if user_has_role(user, [ROLE_POLICE_OFFICER, ROLE_PATROL_OFFICER]):
+            queryset = queryset | Complaint.objects.filter(
+                status=ComplaintStatus.PENDING_OFFICER_REVIEW,
+                assigned_officer=user,
+            )
+        return queryset.distinct()
 
 
 class ComplaintQueueView(generics.ListAPIView):
@@ -85,7 +154,7 @@ class ComplaintQueueView(generics.ListAPIView):
 
     serializer_class = ComplaintSerializer
     permission_classes = [RoleRequiredPermission]
-    required_roles = [ROLE_CADET, ROLE_POLICE_OFFICER, ROLE_SYSTEM_ADMIN]
+    required_roles = [ROLE_CADET, ROLE_POLICE_OFFICER, ROLE_PATROL_OFFICER, ROLE_SYSTEM_ADMIN]
 
     @extend_schema(
         request=None,
@@ -119,12 +188,15 @@ class ComplaintQueueView(generics.ListAPIView):
             return queryset.order_by(ordering)
         if user_has_role(user, [ROLE_CADET]):
             cadet_statuses = [ComplaintStatus.PENDING_CADET_REVIEW, ComplaintStatus.RETURNED_TO_CADET]
-            queryset = Complaint.objects.filter(status__in=cadet_statuses)
+            queryset = Complaint.objects.filter(status__in=cadet_statuses).filter(
+                Q(assigned_cadet__isnull=True, status=ComplaintStatus.PENDING_CADET_REVIEW)
+                | Q(assigned_cadet=user)
+            )
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
             return queryset.order_by(ordering)
         officer_statuses = [ComplaintStatus.PENDING_OFFICER_REVIEW]
-        queryset = Complaint.objects.filter(status__in=officer_statuses)
+        queryset = Complaint.objects.filter(status__in=officer_statuses, assigned_officer=user)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset.order_by(ordering)
@@ -135,26 +207,21 @@ class ComplaintResubmitView(APIView):
 
     @extend_schema(request=ComplaintResubmitSerializer, responses={200: ComplaintSerializer})
     def post(self, request, id):
-        """Resubmit a returned complaint and invalidate it after the third failed submission."""
+        """Resubmit a returned complaint after corrections from the complainant."""
 
         complaint = get_object_or_404(Complaint, id=id, created_by=request.user)
         if complaint.status != ComplaintStatus.RETURNED_TO_COMPLAINANT:
             return Response(
                 {"error": {"code": "invalid_state", "message": "Complaint not returned to complainant", "details": {}}},
                 status=status.HTTP_400_BAD_REQUEST,
-            )
+        )
         serializer = ComplaintResubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        complaint.strike_count += 1
-        if complaint.strike_count >= 3:
-            complaint.status = ComplaintStatus.VOIDED
-            complaint.save()
-            return Response(ComplaintSerializer(complaint).data, status=status.HTTP_200_OK)
         for field, value in serializer.validated_data.items():
             setattr(complaint, field, value)
         complaint.status = ComplaintStatus.PENDING_CADET_REVIEW
         complaint.last_message = ""
-        complaint.save()
+        complaint.save(update_fields=list(serializer.validated_data.keys()) + ["status", "last_message", "updated_at"])
         return Response(ComplaintSerializer(complaint).data, status=status.HTTP_200_OK)
 
 
@@ -172,23 +239,60 @@ class CadetReviewView(APIView):
                 {"error": {"code": "invalid_state", "message": "Complaint not in cadet review", "details": {}}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if complaint.assigned_cadet_id and complaint.assigned_cadet_id != request.user.id:
+            return Response(
+                {"error": {"code": "forbidden", "message": "Complaint assigned to another cadet", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = CadetReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action = serializer.validated_data["action"]
         message = serializer.validated_data.get("message", "")
+        complaint.assigned_cadet = request.user
+        changed_fields = ["assigned_cadet"]
         if action == "return":
-            complaint.status = ComplaintStatus.RETURNED_TO_COMPLAINANT
+            complaint.strike_count += 1
+            complaint.status = ComplaintStatus.VOIDED if complaint.strike_count >= 3 else ComplaintStatus.RETURNED_TO_COMPLAINANT
             complaint.last_message = message
+            complaint.assigned_officer = None
+            changed_fields.extend(["strike_count", "status", "last_message", "assigned_officer"])
+            notification_type = "complaint_voided" if complaint.status == ComplaintStatus.VOIDED else "complaint_returned"
+            Notification.objects.create(
+                user=complaint.created_by,
+                case=None,
+                type=notification_type,
+                payload={
+                    "complaint_id": complaint.id,
+                    "message": message,
+                    "strike_count": complaint.strike_count,
+                    "status": complaint.status,
+                },
+            )
         else:
+            officer = get_object_or_404(User, id=serializer.validated_data["officer_id"])
+            if not user_has_role(officer, [ROLE_POLICE_OFFICER, ROLE_PATROL_OFFICER]):
+                return Response(
+                    {"error": {"code": "validation_error", "message": "Selected user is not an officer", "details": {}}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             complaint.status = ComplaintStatus.PENDING_OFFICER_REVIEW
-        complaint.save()
+            complaint.last_message = ""
+            complaint.assigned_officer = officer
+            changed_fields.extend(["status", "last_message", "assigned_officer"])
+            Notification.objects.create(
+                user=officer,
+                case=None,
+                type="complaint_forwarded_to_officer",
+                payload={"complaint_id": complaint.id, "cadet_id": request.user.id},
+            )
+        complaint.save(update_fields=changed_fields + ["updated_at"])
         CaseReview.objects.create(complaint=complaint, reviewer=request.user, decision=action, message=message)
         return Response(ComplaintSerializer(complaint).data, status=status.HTTP_200_OK)
 
 
 class OfficerReviewView(APIView):
     permission_classes = [RoleRequiredPermission]
-    required_roles = [ROLE_POLICE_OFFICER]
+    required_roles = [ROLE_POLICE_OFFICER, ROLE_PATROL_OFFICER]
 
     @extend_schema(request=OfficerReviewSerializer, responses={200: ComplaintSerializer})
     def post(self, request, id):
@@ -200,25 +304,50 @@ class OfficerReviewView(APIView):
                 {"error": {"code": "invalid_state", "message": "Complaint not in officer review", "details": {}}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if complaint.assigned_officer_id != request.user.id:
+            return Response(
+                {"error": {"code": "forbidden", "message": "Complaint assigned to another officer", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = OfficerReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action = serializer.validated_data["action"]
         message = serializer.validated_data.get("message", "")
         if action == "return_to_cadet":
+            if not complaint.assigned_cadet_id:
+                return Response(
+                    {"error": {"code": "invalid_state", "message": "No cadet assigned to receive this complaint", "details": {}}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             complaint.status = ComplaintStatus.RETURNED_TO_CADET
             complaint.last_message = message
-            complaint.save()
+            complaint.save(update_fields=["status", "last_message", "updated_at"])
+            Notification.objects.create(
+                user=complaint.assigned_cadet,
+                case=None,
+                type="complaint_returned_to_cadet",
+                payload={"complaint_id": complaint.id, "message": message, "officer_id": request.user.id},
+            )
             CaseReview.objects.create(complaint=complaint, reviewer=request.user, decision=action, message=message)
             return Response(ComplaintSerializer(complaint).data, status=status.HTTP_200_OK)
-        if CaseComplainant.objects.filter(
-            complaint=complaint,
-            verification_status=CaseComplainant.VerificationStatus.PENDING,
-        ).exists():
+        primary_complainant = complaint.complainants.order_by("id").first()
+        if not primary_complainant:
             return Response(
                 {
                     "error": {
                         "code": "invalid_state",
-                        "message": "All complainants must be reviewed by cadet before approval",
+                        "message": "Primary complainant is required before case formation",
+                        "details": {},
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if primary_complainant.verification_status != CaseComplainant.VerificationStatus.APPROVED:
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_state",
+                        "message": "Primary complainant must be approved by cadet before case formation",
                         "details": {},
                     }
                 },
@@ -228,20 +357,9 @@ class OfficerReviewView(APIView):
             complaint=complaint,
             verification_status=CaseComplainant.VerificationStatus.APPROVED,
         )
-        if not approved_complainants.exists():
-            return Response(
-                {
-                    "error": {
-                        "code": "invalid_state",
-                        "message": "At least one complainant must be approved before case formation",
-                        "details": {},
-                    }
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         complaint.status = ComplaintStatus.APPROVED
         complaint.last_message = ""
-        complaint.save()
+        complaint.save(update_fields=["status", "last_message", "updated_at"])
         case = Case.objects.create(
             title=complaint.title,
             description=complaint.description,
@@ -254,6 +372,7 @@ class OfficerReviewView(APIView):
             complaint=complaint,
         )
         approved_complainants.update(case=case, is_verified=True)
+        CaseAssignment.objects.get_or_create(case=case, user=request.user, role_in_case=CaseAssignmentRole.OFFICER)
         CaseReview.objects.create(complaint=complaint, reviewer=request.user, decision=action, message=message)
         return Response(ComplaintSerializer(complaint).data, status=status.HTTP_200_OK)
 
@@ -318,6 +437,11 @@ class CrimeSceneApproveView(APIView):
         serializer.is_valid(raise_exception=True)
         approve = serializer.validated_data["approve"]
         required_role = report.required_approver_role
+        if report.reported_by_id == request.user.id:
+            return Response(
+                {"error": {"code": "forbidden", "message": "Case reporter cannot approve their own report", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if required_role and not user_has_role(request.user, [required_role.slug]):
             return Response(
                 {"error": {"code": "forbidden", "message": "Not authorized to approve", "details": {}}},
@@ -358,13 +482,18 @@ class CaseDetailView(generics.RetrieveUpdateAPIView):
         return _case_queryset_for_user(self.request.user)
 
     def update(self, request, *args, **kwargs):
+        case = self.get_object()
         if not user_has_role(request.user, list(POLICE_ROLES)):
             return Response(
                 {"error": {"code": "forbidden", "message": "Not authorized", "details": {}}},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if not can_user_access_case(request.user, case):
+            return Response(
+                {"error": {"code": "forbidden", "message": "Not authorized to update this case", "details": {}}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if "status" in request.data:
-            case = self.get_object()
             current = case.status
             desired = request.data.get("status")
             allowed = {
@@ -385,7 +514,7 @@ class AddComplainantView(APIView):
 
     @extend_schema(request=AddComplainantSerializer, responses={200: CaseSerializer})
     def post(self, request, id):
-        """Attach a new complainant record to an existing case for cadet verification."""
+        """Attach a new complainant record to an existing case without additional verification."""
 
         case = get_object_or_404(Case, id=id)
         serializer = AddComplainantSerializer(data=request.data)
@@ -393,8 +522,8 @@ class AddComplainantView(APIView):
         CaseComplainant.objects.create(
             case=case,
             **serializer.validated_data,
-            is_verified=False,
-            verification_status=CaseComplainant.VerificationStatus.PENDING,
+            is_verified=True,
+            verification_status=CaseComplainant.VerificationStatus.APPROVED,
             review_message="",
         )
         return Response(CaseSerializer(case).data, status=status.HTTP_200_OK)
@@ -409,6 +538,17 @@ class ComplainantReviewView(APIView):
         """Approve or reject an individual complainant attached to a case or complaint."""
 
         complainant = get_object_or_404(CaseComplainant, id=id)
+        if complainant.case_id and not complainant.complaint_id:
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_state",
+                        "message": "Additional case complainants are auto-approved and do not require review",
+                        "details": {},
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = ComplainantReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action = serializer.validated_data["action"]

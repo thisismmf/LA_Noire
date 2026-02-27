@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from django.utils import timezone
+from apps.accounts.models import User
 from .models import (
     Complaint,
     Case,
@@ -9,7 +9,10 @@ from .models import (
     CrimeSceneWitness,
     CaseAssignment,
 )
-from .constants import ComplaintStatus, CaseStatus, CrimeSceneStatus, CaseSourceType
+
+
+def _normalize_name(value):
+    return " ".join((value or "").strip().lower().split())
 
 
 class CaseComplainantSerializer(serializers.ModelSerializer):
@@ -34,10 +37,17 @@ class ComplaintSerializer(serializers.ModelSerializer):
             "status",
             "strike_count",
             "last_message",
+            "assigned_cadet",
+            "assigned_officer",
             "complainants",
             "created_at",
         )
-        read_only_fields = ("id", "status", "strike_count", "last_message", "created_at")
+        read_only_fields = ("id", "status", "strike_count", "last_message", "assigned_cadet", "assigned_officer", "created_at")
+
+    def validate_complainants(self, value):
+        if len(value) > 1:
+            raise serializers.ValidationError("Only the primary complainant can be submitted initially")
+        return value
 
     def create(self, validated_data):
         complainants_data = validated_data.pop("complainants", [])
@@ -58,12 +68,15 @@ class ComplaintResubmitSerializer(serializers.Serializer):
 class CadetReviewSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=["approve", "return"])
     message = serializers.CharField(required=False, allow_blank=True)
+    officer_id = serializers.IntegerField(required=False, min_value=1)
 
     def validate(self, attrs):
         action = attrs.get("action")
         message = (attrs.get("message") or "").strip()
         if action == "return" and not message:
             raise serializers.ValidationError("message is required when returning to complainant")
+        if action == "approve" and not attrs.get("officer_id"):
+            raise serializers.ValidationError("officer_id is required when forwarding to an officer")
         return attrs
 
 
@@ -93,6 +106,30 @@ class CrimeSceneReportSerializer(serializers.Serializer):
     incident_datetime = serializers.DateTimeField(required=False, allow_null=True)
     scene_datetime = serializers.DateTimeField()
     witnesses = CrimeSceneWitnessSerializer(many=True)
+
+    def validate_witnesses(self, witnesses):
+        validated_witnesses = []
+        for witness in witnesses:
+            national_id = witness.get("national_id")
+            phone = witness.get("phone")
+            matched_user = User.objects.filter(national_id=national_id).first()
+            if not matched_user:
+                raise serializers.ValidationError(
+                    f"Witness with national_id '{national_id}' must exist in the database"
+                )
+            if matched_user.phone != phone:
+                raise serializers.ValidationError(
+                    f"Witness phone for national_id '{national_id}' does not match the database"
+                )
+            expected_full_name = f"{matched_user.first_name} {matched_user.last_name}".strip()
+            provided_full_name = witness.get("full_name", "")
+            if provided_full_name and _normalize_name(provided_full_name) != _normalize_name(expected_full_name):
+                raise serializers.ValidationError(
+                    f"Witness full_name for national_id '{national_id}' does not match the database"
+                )
+            witness["full_name"] = provided_full_name or expected_full_name
+            validated_witnesses.append(witness)
+        return validated_witnesses
 
 
 class CrimeSceneApproveSerializer(serializers.Serializer):

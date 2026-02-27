@@ -4,14 +4,22 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 from apps.rbac.permissions import RoleRequiredPermission
-from apps.rbac.constants import ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN
+from apps.rbac.constants import ROLE_DETECTIVE
+from apps.rbac.utils import user_has_role
 from apps.cases.models import Case
 from apps.cases.policies import can_user_access_case
 from .models import DetectiveBoard, BoardItem, BoardConnection
 from .serializers import DetectiveBoardSerializer, BoardItemSerializer, BoardConnectionSerializer
 
 
-BOARD_ROLES = [ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF, ROLE_SYSTEM_ADMIN]
+BOARD_ROLES = [ROLE_DETECTIVE]
+
+
+def _detective_only_response():
+    return Response(
+        {"error": {"code": "forbidden", "message": "Detective role required", "details": {}}},
+        status=status.HTTP_403_FORBIDDEN,
+    )
 
 
 class BoardDetailView(APIView):
@@ -22,6 +30,8 @@ class BoardDetailView(APIView):
     def get(self, request, case_id):
         """Return the detective board for a case, including all notes, evidence references, and connections."""
 
+        if not user_has_role(request.user, [ROLE_DETECTIVE]):
+            return _detective_only_response()
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
             return Response(
@@ -40,6 +50,8 @@ class BoardItemCreateView(APIView):
     def post(self, request, case_id):
         """Create a new board item such as a note or evidence reference on a detective board."""
 
+        if not user_has_role(request.user, [ROLE_DETECTIVE]):
+            return _detective_only_response()
         case = get_object_or_404(Case, id=case_id)
         if not can_user_access_case(request.user, case):
             return Response(
@@ -72,6 +84,8 @@ class BoardItemDetailView(APIView):
     def patch(self, request, id):
         """Update a board item's content, position, or linked evidence reference."""
 
+        if not user_has_role(request.user, [ROLE_DETECTIVE]):
+            return _detective_only_response()
         item = get_object_or_404(BoardItem, id=id)
         if not can_user_access_case(request.user, item.board.case):
             return Response(
@@ -100,6 +114,8 @@ class BoardItemDetailView(APIView):
     def delete(self, request, id):
         """Remove a board item from the detective board."""
 
+        if not user_has_role(request.user, [ROLE_DETECTIVE]):
+            return _detective_only_response()
         item = get_object_or_404(BoardItem, id=id)
         if not can_user_access_case(request.user, item.board.case):
             return Response(
@@ -118,6 +134,8 @@ class BoardConnectionCreateView(APIView):
     def post(self, request):
         """Create a red-line connection between two board items on the same detective board."""
 
+        if not user_has_role(request.user, [ROLE_DETECTIVE]):
+            return _detective_only_response()
         serializer = BoardConnectionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         from_item = serializer.validated_data["from_item"]
@@ -144,6 +162,8 @@ class BoardConnectionDeleteView(APIView):
     def delete(self, request, id):
         """Remove a red-line connection between detective board items."""
 
+        if not user_has_role(request.user, [ROLE_DETECTIVE]):
+            return _detective_only_response()
         connection = get_object_or_404(BoardConnection, id=id)
         if not can_user_access_case(request.user, connection.board.case):
             return Response(

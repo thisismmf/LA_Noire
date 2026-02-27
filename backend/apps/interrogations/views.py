@@ -6,9 +6,10 @@ from drf_spectacular.utils import extend_schema
 from apps.rbac.permissions import RoleRequiredPermission
 from apps.rbac.constants import ROLE_DETECTIVE, ROLE_SERGEANT, ROLE_CAPTAIN, ROLE_POLICE_CHIEF
 from apps.cases.models import Case
-from apps.cases.constants import CrimeLevel
-from apps.cases.policies import can_user_access_case, is_user_assigned_to_case
+from apps.cases.constants import CrimeLevel, CaseStatus
+from apps.cases.policies import is_user_assigned_to_case
 from apps.suspects.models import Person
+from apps.notifications.models import Notification
 from .models import Interrogation
 from .serializers import (
     InterrogationSerializer,
@@ -110,7 +111,7 @@ class CaptainDecisionView(APIView):
         """Record the captain decision and escalate critical cases to chief approval when required."""
 
         interrogation = get_object_or_404(Interrogation, id=id)
-        if not can_user_access_case(request.user, interrogation.case):
+        if interrogation.case.status not in [CaseStatus.ACTIVE, CaseStatus.CLOSED_SOLVED, CaseStatus.CLOSED_UNSOLVED]:
             return Response(
                 {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
                 status=status.HTTP_403_FORBIDDEN,
@@ -122,12 +123,22 @@ class CaptainDecisionView(APIView):
             )
         serializer = CaptainDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        decision = serializer.validated_data["decision"]
+        if decision == "approve" and Interrogation.objects.filter(
+            case=interrogation.case,
+            status="approved",
+        ).exclude(id=interrogation.id).exists():
+            return Response(
+                {"error": {"code": "invalid_state", "message": "An offender is already approved for this case", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         interrogation.captain_decision = serializer.validated_data["decision"]
         interrogation.captain_notes = serializer.validated_data.get("notes", "")
+        interrogation.captain_reviewed_by = request.user
         if interrogation.case.crime_level == CrimeLevel.CRITICAL:
             interrogation.status = "pending_chief"
         else:
-            interrogation.status = "approved" if serializer.validated_data["decision"] == "approve" else "rejected"
+            interrogation.status = "approved" if decision == "approve" else "rejected"
         interrogation.save()
         return Response(InterrogationSerializer(interrogation).data, status=status.HTTP_200_OK)
 
@@ -141,7 +152,7 @@ class ChiefDecisionView(APIView):
         """Record the chief of police decision for a critical-crime interrogation."""
 
         interrogation = get_object_or_404(Interrogation, id=id)
-        if not can_user_access_case(request.user, interrogation.case):
+        if interrogation.case.status not in [CaseStatus.ACTIVE, CaseStatus.CLOSED_SOLVED, CaseStatus.CLOSED_UNSOLVED]:
             return Response(
                 {"error": {"code": "forbidden", "message": "Not authorized for this case", "details": {}}},
                 status=status.HTTP_403_FORBIDDEN,
@@ -153,8 +164,30 @@ class ChiefDecisionView(APIView):
             )
         serializer = ChiefDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        interrogation.chief_decision = serializer.validated_data["decision"]
+        decision = serializer.validated_data["decision"]
+        if decision == "approve" and Interrogation.objects.filter(
+            case=interrogation.case,
+            status="approved",
+        ).exclude(id=interrogation.id).exists():
+            return Response(
+                {"error": {"code": "invalid_state", "message": "An offender is already approved for this case", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        interrogation.chief_decision = decision
         interrogation.chief_notes = serializer.validated_data.get("notes", "")
-        interrogation.status = "approved" if serializer.validated_data["decision"] == "approve" else "rejected"
+        if decision == "approve":
+            interrogation.status = "approved"
+        else:
+            interrogation.status = "pending_captain"
+            if interrogation.captain_reviewed_by_id:
+                Notification.objects.create(
+                    user=interrogation.captain_reviewed_by,
+                    case=interrogation.case,
+                    type="chief_rejected_interrogation_decision",
+                    payload={
+                        "interrogation_id": interrogation.id,
+                        "chief_notes": interrogation.chief_notes,
+                    },
+                )
         interrogation.save()
         return Response(InterrogationSerializer(interrogation).data, status=status.HTTP_200_OK)
