@@ -39,7 +39,8 @@ Frontend container is provided via:
 
 Run full stack:
 ```bash
-docker compose up --build
+docker compose build --no-cache web
+docker compose up
 ```
 
 Frontend in Docker: `http://localhost:5173`
