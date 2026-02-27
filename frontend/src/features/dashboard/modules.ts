@@ -32,7 +32,7 @@ export const allModules: DashboardModule[] = [
     title: "Detective Board",
     description: "Drag-and-drop board with red-line links, evidence references, and report export.",
     path: "/board",
-    roles: ["detective", "sergeant", "captain", "police-chief", "system-administrator"],
+    roles: ["detective"],
   },
   {
     id: "evidence",

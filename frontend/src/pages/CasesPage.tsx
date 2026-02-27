@@ -74,13 +74,13 @@ function levelOptions() {
 export function CasesPage() {
   const queryClient = useQueryClient();
   const roles = useAuthStore((state) => state.roles);
-  const canReviewQueue = roles.some((role) => ["cadet", "police-officer", "system-administrator"].includes(role));
+  const canReviewQueue = roles.some((role) => ["cadet", "police-officer", "patrol-officer", "system-administrator"].includes(role));
   const canCreateCrimeScene = roles.some((role) =>
     ["police-officer", "patrol-officer", "detective", "sergeant", "captain", "police-chief", "system-administrator"].includes(role),
   );
   const canManageAssignments = roles.some((role) => ["sergeant", "captain", "police-chief", "system-administrator"].includes(role));
   const canCadet = roles.includes("cadet");
-  const canOfficer = roles.includes("police-officer");
+  const canOfficer = roles.some((role) => ["police-officer", "patrol-officer"].includes(role));
 
   const [complaintForm, setComplaintForm] = useState(emptyComplaint);
   const [crimeSceneForm, setCrimeSceneForm] = useState(emptyCrimeScene);
@@ -91,6 +91,7 @@ export function CasesPage() {
     role_in_case: "detective",
   });
   const [reviewMessageMap, setReviewMessageMap] = useState<Record<number, string>>({});
+  const [officerSelectionMap, setOfficerSelectionMap] = useState<Record<number, number>>({});
   const [pageMessage, setPageMessage] = useState("");
 
   const casesQuery = useQuery({
@@ -147,8 +148,18 @@ export function CasesPage() {
   });
 
   const cadetReviewMutation = useMutation({
-    mutationFn: ({ complaintId, action, message }: { complaintId: number; action: "approve" | "return"; message?: string }) =>
-      cadetReviewComplaint(complaintId, { action, message }),
+    mutationFn: ({
+      complaintId,
+      action,
+      message,
+      officerId,
+    }: {
+      complaintId: number;
+      action: "approve" | "return";
+      message?: string;
+      officerId?: number;
+    }) =>
+      cadetReviewComplaint(complaintId, { action, message, officer_id: officerId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["complaint-queue"] });
       setPageMessage("Cadet review submitted.");
@@ -234,6 +245,10 @@ export function CasesPage() {
 
   function setReviewMessage(complaintId: number, value: string) {
     setReviewMessageMap((prev) => ({ ...prev, [complaintId]: value }));
+  }
+
+  function selectedOfficerFor(complaintId: number) {
+    return officerSelectionMap[complaintId] || 0;
   }
 
   return (
@@ -481,6 +496,10 @@ export function CasesPage() {
                   <p className="muted-text">
                     Status: {toTitleCase(item.status)} | Strikes: {item.strike_count} | Last Message: {item.last_message || "-"}
                   </p>
+                  <p className="muted-text">
+                    Location: {item.location} | Incident: {item.incident_datetime ? formatDate(item.incident_datetime) : "-"}
+                  </p>
+                  <p>{item.description}</p>
                 </div>
                 <textarea
                   placeholder="Review message"
@@ -490,7 +509,30 @@ export function CasesPage() {
                 <div className="button-row">
                   {canCadet && (
                     <>
-                      <Button onClick={() => cadetReviewMutation.mutate({ complaintId: item.id, action: "approve" })}>Cadet Approve</Button>
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="Officer User ID"
+                        value={selectedOfficerFor(item.id) || ""}
+                        onChange={(event) =>
+                          setOfficerSelectionMap((prev) => ({
+                            ...prev,
+                            [item.id]: Number(event.target.value),
+                          }))
+                        }
+                      />
+                      <Button
+                        onClick={() =>
+                          cadetReviewMutation.mutate({
+                            complaintId: item.id,
+                            action: "approve",
+                            officerId: selectedOfficerFor(item.id),
+                          })
+                        }
+                        disabled={!selectedOfficerFor(item.id)}
+                      >
+                        Cadet Approve
+                      </Button>
                       <Button
                         variant="secondary"
                         onClick={() => cadetReviewMutation.mutate({ complaintId: item.id, action: "return", message: reviewMessageFor(item) })}

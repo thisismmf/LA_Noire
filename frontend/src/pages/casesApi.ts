@@ -48,7 +48,10 @@ export async function resubmitComplaint(complaintId: number, payload: Partial<Co
   return data;
 }
 
-export async function cadetReviewComplaint(complaintId: number, payload: { action: "approve" | "return"; message?: string }) {
+export async function cadetReviewComplaint(
+  complaintId: number,
+  payload: { action: "approve" | "return"; message?: string; officer_id?: number },
+) {
   const { data } = await apiClient.post<Complaint>(`/cases/complaints/${complaintId}/cadet-review/`, payload);
   return data;
 }

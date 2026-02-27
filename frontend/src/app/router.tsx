@@ -42,7 +42,10 @@ export const appRouter = createBrowserRouter([
             children: [
               { path: "dashboard", element: <DashboardPage /> },
               { path: "cases", element: <CasesPage /> },
-              { path: "board", element: <DetectiveBoardPage /> },
+              {
+                element: <RoleGuard allowedRoles={["detective"]} />,
+                children: [{ path: "board", element: <DetectiveBoardPage /> }],
+              },
               { path: "evidence", element: <EvidencePage /> },
               { path: "reports", element: <ReportsPage /> },
               { path: "tips", element: <TipsRewardsPage /> },

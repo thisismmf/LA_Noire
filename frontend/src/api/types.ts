@@ -71,6 +71,8 @@ export type Complaint = {
   status: string;
   strike_count: number;
   last_message: string;
+  assigned_cadet?: number | null;
+  assigned_officer?: number | null;
   complainants: CaseComplainant[];
   created_at: string;
 };
