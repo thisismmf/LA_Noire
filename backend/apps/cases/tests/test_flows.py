@@ -24,7 +24,6 @@ from apps.suspects.models import Person, WantedRecord, SuspectCandidate
 from apps.suspects.utils import compute_most_wanted
 from apps.rewards.models import RewardCode
 from apps.payments.models import Payment
-from apps.payments.gateway import sign_payload
 from apps.interrogations.models import Interrogation
 from apps.notifications.models import Notification
 
@@ -380,10 +379,10 @@ class CaseFlowTests(APITestCase):
         )
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         payment_id = res.data["payment"]["id"]
-        signature = sign_payload(f"{payment_id}:1000:bail")
+        authority = res.data["authority"]
         callback = self.client.post(
             "/api/v1/payments/callback/",
-            {"payment_id": payment_id, "status": "success", "signature": signature},
+            {"payment_id": payment_id, "status": "OK", "authority": authority},
             format="json",
         )
         self.assertEqual(callback.status_code, status.HTTP_200_OK)

@@ -13,7 +13,34 @@ from apps.cases.constants import CrimeLevel
 from apps.suspects.models import Person, WantedRecord
 from .models import Payment
 from .serializers import PaymentCreateSerializer, PaymentSerializer, PaymentCallbackSerializer, PaymentCreateResponseSerializer
-from .gateway import generate_gateway_ref, sign_payload, verify_signature
+from .gateway import build_callback_url, request_payment, verify_payment, PaymentGatewayError
+
+
+def _set_payment_status(payment, status_value):
+    payment.status = status_value
+    payment.verified_at = timezone.now()
+    payment.save(update_fields=["status", "verified_at"])
+
+
+def _verify_and_update_payment(payment, authority):
+    if not authority:
+        return False, {"code": "validation_error", "message": "Authority is required for verification"}
+    if payment.gateway_ref and payment.gateway_ref != authority:
+        return False, {"code": "invalid_authority", "message": "Authority does not match payment record"}
+    if payment.status == "success":
+        return True, {"code": 101, "message": "Payment already verified"}
+    try:
+        verification = verify_payment(amount=payment.amount, authority=authority)
+    except PaymentGatewayError as exc:
+        return False, {"code": "gateway_error", "message": str(exc)}
+    if verification["ok"]:
+        payment.gateway_ref = authority
+        payment.status = "success"
+        payment.verified_at = timezone.now()
+        payment.save(update_fields=["gateway_ref", "status", "verified_at"])
+        return True, verification
+    _set_payment_status(payment, "failed")
+    return False, verification
 
 
 class PaymentCreateView(APIView):
@@ -64,12 +91,46 @@ class PaymentCreateView(APIView):
             amount=serializer.validated_data["amount"],
             type=payment_type,
             status="pending",
-            gateway_ref=generate_gateway_ref(),
+            gateway_ref="",
         )
-        payload = f"{payment.id}:{payment.amount}:{payment.type}"
-        signature = sign_payload(payload)
-        redirect_url = f"/api/v1/payments/return/?payment_id={payment.id}&status=pending"
-        return Response({"payment": PaymentSerializer(payment).data, "redirect_url": redirect_url, "signature": signature}, status=status.HTTP_201_CREATED)
+        callback_url = build_callback_url(payment.id)
+        description = f"{payment_type.title()} payment for case #{case.id} and person #{person.id}"
+        try:
+            gateway_response = request_payment(
+                payment_id=payment.id,
+                amount=payment.amount,
+                description=description,
+                callback_url=callback_url,
+                mobile=person.phone or None,
+            )
+        except PaymentGatewayError as exc:
+            _set_payment_status(payment, "failed")
+            return Response(
+                {"error": {"code": "gateway_error", "message": str(exc), "details": {}}},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        if not gateway_response["ok"]:
+            _set_payment_status(payment, "failed")
+            return Response(
+                {
+                    "error": {
+                        "code": "gateway_rejected",
+                        "message": gateway_response.get("message", "Gateway rejected payment request"),
+                        "details": {"gateway_code": gateway_response.get("code")},
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payment.gateway_ref = gateway_response["authority"]
+        payment.save(update_fields=["gateway_ref"])
+        return Response(
+            {
+                "payment": PaymentSerializer(payment).data,
+                "redirect_url": gateway_response["redirect_url"],
+                "authority": gateway_response["authority"],
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class PaymentReturnView(APIView):
@@ -77,12 +138,37 @@ class PaymentReturnView(APIView):
 
     @extend_schema(request=None, responses={200: OpenApiTypes.STR})
     def get(self, request):
-        """Render the payment gateway return page that shows the current payment status to the user."""
+        """Handle Zarinpal return redirect and render the final payment result page."""
 
         payment_id = request.GET.get("payment_id")
-        status_param = request.GET.get("status", "pending")
+        status_param = request.GET.get("Status") or request.GET.get("status", "NOK")
+        authority = request.GET.get("Authority") or request.GET.get("authority")
         payment = Payment.objects.filter(id=payment_id).first() if payment_id else None
-        return render(request, "payments/return.html", {"payment": payment, "status": status_param})
+        context = {
+            "payment": payment,
+            "status": "failed",
+            "authority": authority,
+            "message": "Payment record not found.",
+            "ref_id": None,
+        }
+        if not payment:
+            return render(request, "payments/return.html", context)
+
+        if str(status_param).upper() != "OK":
+            if payment.status != "success":
+                _set_payment_status(payment, "failed")
+            context.update({"status": "failed", "message": "Payment was canceled or failed on gateway side."})
+            return render(request, "payments/return.html", context)
+
+        verified, verify_result = _verify_and_update_payment(payment, authority)
+        context.update(
+            {
+                "status": "success" if verified else "failed",
+                "message": verify_result.get("message", "Verification failed."),
+                "ref_id": verify_result.get("ref_id"),
+            }
+        )
+        return render(request, "payments/return.html", context)
 
 
 class PaymentCallbackView(APIView):
@@ -90,19 +176,28 @@ class PaymentCallbackView(APIView):
 
     @extend_schema(request=PaymentCallbackSerializer, responses={200: PaymentSerializer})
     def post(self, request):
-        """Process the gateway callback, verify the signature, and persist the final payment status."""
+        """Verify a Zarinpal callback payload and persist the payment status."""
 
         serializer = PaymentCallbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payment = get_object_or_404(Payment, id=serializer.validated_data["payment_id"])
-        payload = f"{payment.id}:{payment.amount}:{payment.type}"
-        if not verify_signature(payload, serializer.validated_data["signature"]):
+        status_value = str(serializer.validated_data.get("status", "OK")).upper()
+        authority = serializer.validated_data.get("authority")
+
+        if status_value in {"NOK", "FAILED", "FAIL"}:
+            _set_payment_status(payment, "failed")
+            return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
+
+        verified, verify_result = _verify_and_update_payment(payment, authority)
+        if not verified:
             return Response(
-                {"error": {"code": "invalid_signature", "message": "Signature mismatch", "details": {}}},
+                {
+                    "error": {
+                        "code": verify_result.get("code", "verification_failed"),
+                        "message": verify_result.get("message", "Payment verification failed"),
+                        "details": {},
+                    }
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        status_value = serializer.validated_data["status"]
-        payment.status = "success" if status_value == "success" else "failed"
-        payment.verified_at = timezone.now()
-        payment.save()
         return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
